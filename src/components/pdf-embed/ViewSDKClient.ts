@@ -10,6 +10,7 @@ written permission of Adobe.
 */
 
 import type { AdobeDCView, ViewerConfig, SaveApiResponse, PDFEvent } from './types';
+import { buildApiUrl, API_ENDPOINTS } from '../../lib/apiConfig';
 
 class ViewSDKClient {
   private readyPromise: Promise<void>;
@@ -20,7 +21,7 @@ class ViewSDKClient {
     this.readyPromise = new Promise(async (resolve) => {
       // Fetch client ID from server
       try {
-        const response = await fetch('http://localhost:5001/api/adobe-config');
+        const response = await fetch(buildApiUrl(API_ENDPOINTS.ADOBE_CONFIG));
         const config = await response.json();
         this.clientId = config.clientId;
       } catch (error) {

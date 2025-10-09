@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAbsoluteUrl } from "@/lib/queryClient";
+import { API_ENDPOINTS } from "@/lib/apiConfig";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,9 +54,9 @@ export function QuizModal({ course, isOpen, onClose }: QuizModalProps) {
 
   // Fetch random questions for the course
   const { data: questions, isLoading: isLoadingQuestions } = useQuery({
-    queryKey: [`/api/courses/${course.id}/questions/random`],
+    queryKey: [API_ENDPOINTS.COURSE_RANDOM_QUESTIONS(course.id)],
     queryFn: async () => {
-      const response = await fetch(getAbsoluteUrl(`/api/courses/${course.id}/questions/random?count=10&difficulty=${currentDifficulty}`), {
+      const response = await fetch(getAbsoluteUrl(`${API_ENDPOINTS.COURSE_RANDOM_QUESTIONS(course.id)}?count=10&difficulty=${currentDifficulty}`), {
         credentials: "include",
       });
       if (!response.ok) throw new Error(response.statusText);
@@ -67,15 +68,16 @@ export function QuizModal({ course, isOpen, onClose }: QuizModalProps) {
   // Submit quiz result mutation
   const submitQuizMutation = useMutation({
     mutationFn: async (result: QuizResult) => {
-      const response = await fetch(getAbsoluteUrl('/api/quiz/submit'), {
+      const response = await fetch(getAbsoluteUrl(API_ENDPOINTS.QUIZ_SUBMIT), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: "include",
         body: JSON.stringify({
-          courseId: course.id,
-          ...result,
+          course_id: course.id,
+          questions: answers.map(a => ({ question_id: a.questionId, answer: a.answer })),
+          time_taken: result.timeSpent,
         }),
       });
       if (!response.ok) throw new Error(response.statusText);

@@ -1,7 +1,5 @@
 import { QueryClient, type QueryFunction } from "@tanstack/react-query";
-
-// API base URL configuration
-const API_BASE_URL = 'http://localhost:5001';
+import { API_BASE_URL } from "./apiConfig";
 
 // Helper function to convert relative URLs to absolute URLs
 export function getAbsoluteUrl(url: string): string {
@@ -78,7 +76,18 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior, token }) =>
   async ({ queryKey }) => {
-    const relativeUrl = queryKey.join("/") as string;
+    // Handle queryKey properly - if it's an array with API endpoint, use it directly
+    let relativeUrl: string;
+    if (Array.isArray(queryKey) && queryKey.length === 1) {
+      // Single endpoint like ['/api/auth/user']
+      relativeUrl = queryKey[0] as string;
+    } else if (Array.isArray(queryKey) && queryKey.length > 1) {
+      // Multiple parts, join them
+      relativeUrl = queryKey.join("/") as string;
+    } else {
+      relativeUrl = queryKey as unknown as string;
+    }
+    
     const absoluteUrl = getAbsoluteUrl(relativeUrl);
     
     console.log('getQueryFn URL construction:', { 

@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { buildApiUrl, API_ENDPOINTS } from "@/lib/apiConfig";
+import { authenticatedFetch } from "@/lib/authHelpers";
 import {
   Play,
   Shuffle,
@@ -33,7 +35,7 @@ export default function Home() {
         variant: "destructive",
       });
       setTimeout(() => {
-        window.location.href = "http://localhost:5001/api/login";
+        window.location.href = "/login";
       }, 500);
       return;
     }
@@ -57,7 +59,7 @@ export default function Home() {
             variant: "destructive",
           });
           setTimeout(() => {
-            window.location.href = "http://localhost:5001/api/login";
+            window.location.href = "/login";
           }, 500);
           return null;
         }
@@ -67,12 +69,10 @@ export default function Home() {
   });
 
   const { data: statistics } = useQuery({
-    queryKey: ["/api/statistics"],
+    queryKey: [API_ENDPOINTS.USER_STATISTICS],
     queryFn: async ({ queryKey }) => {
       try {
-        const response = await fetch(queryKey[0], {
-          credentials: "include",
-        });
+        const response = await authenticatedFetch(queryKey[0]);
         if (!response.ok) throw new Error(response.statusText);
         return await response.json();
       } catch (error: any) {
@@ -85,12 +85,10 @@ export default function Home() {
   });
 
   const { data: aiCredits } = useQuery({
-    queryKey: ["/api/ai/credits"],
+    queryKey: [API_ENDPOINTS.AI_CREDITS],
     queryFn: async ({ queryKey }) => {
       try {
-        const response = await fetch(queryKey[0], {
-          credentials: "include",
-        });
+        const response = await authenticatedFetch(queryKey[0]);
         if (!response.ok) throw new Error(response.statusText);
         return await response.json();
       } catch (error: any) {
@@ -103,12 +101,10 @@ export default function Home() {
   });
 
   const { data: recentCourses } = useQuery({
-    queryKey: ["/api/courses"],
+    queryKey: [API_ENDPOINTS.COURSES],
     queryFn: async ({ queryKey }) => {
       try {
-        const response = await fetch(`${queryKey[0]}?limit=3`, {
-          credentials: "include",
-        });
+        const response = await authenticatedFetch(`${queryKey[0]}?limit=3`);
         if (!response.ok) throw new Error(response.statusText);
         const courses = await response.json();
         return courses.slice(0, 3);
@@ -125,8 +121,8 @@ export default function Home() {
     if (!aiMessage.trim()) return;
     
     try {
-      await authenticatedApiRequest("POST", "/api/ai/chat", {
-        message: aiMessage,
+      await authenticatedApiRequest("POST", API_ENDPOINTS.AI_CHAT, {
+        content: aiMessage,
       });
       
       setAiMessage("");
@@ -142,7 +138,7 @@ export default function Home() {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "http://localhost:5001/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }

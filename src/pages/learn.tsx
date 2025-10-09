@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { authenticatedApiRequest } from "@/lib/queryClient";
+import { API_ENDPOINTS } from "@/lib/apiConfig";
 import { 
   Search, 
   BookOpen, 
@@ -46,9 +47,9 @@ export default function Learn() {
 
   // Fetch user preferences
   const { data: userPreferences } = useQuery({
-    queryKey: ["/api/user/preferences"],
+    queryKey: [API_ENDPOINTS.USER_PREFERENCES],
     queryFn: async () => {
-      const response = await authenticatedApiRequest("GET", "/api/user/preferences");
+      const response = await authenticatedApiRequest("GET", API_ENDPOINTS.USER_PREFERENCES);
       return await response.json();
     },
     enabled: !!user,
@@ -57,7 +58,7 @@ export default function Learn() {
   // Save preferences mutation
   const savePreferencesMutation = useMutation({
     mutationFn: async (preferences: any) => {
-      const response = await authenticatedApiRequest("POST", "/api/user/preferences", { preferences });
+      const response = await authenticatedApiRequest("POST", API_ENDPOINTS.USER_PREFERENCES, { preferences });
       return await response.json();
     },
   });
@@ -168,15 +169,15 @@ export default function Learn() {
 
   const { data: courses, isLoading } = useQuery({
     queryKey: [
-      "/api/courses",
+      API_ENDPOINTS.COURSES,
       { 
         type: "University",
         university: universityFilter !== "all" ? universityFilter : undefined,
         year: yearFilter !== "all" ? yearFilter : undefined,
         semester: semesterFilter !== "all" ? semesterFilter : undefined,
         source: sourceFilter !== "all" ? sourceFilter : undefined,
-        sortBy,
-        sortOrder,
+        sort_by: sortBy,
+        sort_order: sortOrder,
       }
     ],
     queryFn: async ({ queryKey }) => {

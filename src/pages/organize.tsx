@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { buildApiUrl, API_ENDPOINTS } from "@/lib/apiConfig";
 import { 
   Plus, 
   Calendar as CalendarIcon, 
@@ -64,7 +65,7 @@ export default function Organize() {
   });
 
   const { data: schedule } = useQuery({
-    queryKey: ["/api/schedule", { date: selectedDate.toISOString().split('T')[0] }],
+    queryKey: [API_ENDPOINTS.PROGRESS, { date: selectedDate.toISOString().split('T')[0] }],
     queryFn: async ({ queryKey }) => {
       try {
         const [url, params] = queryKey;
@@ -81,7 +82,7 @@ export default function Organize() {
             variant: "destructive",
           });
           setTimeout(() => {
-            window.location.href = "http://localhost:5001/api/login";
+            window.location.href = "/login";
           }, 500);
           return [];
         }
@@ -96,13 +97,13 @@ export default function Organize() {
 
   const createScheduleMutation = useMutation({
     mutationFn: async (data: ScheduleFormData) => {
-      return await authenticatedApiRequest("POST", "/api/schedule", {
+      return await authenticatedApiRequest("POST", API_ENDPOINTS.PROGRESS, {
         ...data,
         scheduledDate: data.scheduledDate.toISOString(),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/schedule"] });
+      queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.PROGRESS] });
       setIsAddDialogOpen(false);
       form.reset();
       toast({
@@ -118,7 +119,7 @@ export default function Organize() {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "http://localhost:5001/api/login";
+          window.location.href = buildApiUrl(API_ENDPOINTS.LOGIN);
         }, 500);
         return;
       }
@@ -132,10 +133,10 @@ export default function Organize() {
 
   const updateScheduleMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<any> }) => {
-      return await authenticatedApiRequest("PATCH", `/api/schedule/${id}`, data);
+      return await authenticatedApiRequest("PATCH", `${API_ENDPOINTS.PROGRESS}/${id}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/schedule"] });
+      queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.PROGRESS] });
       toast({
         title: "Tâche mise à jour",
         description: "Votre tâche a été modifiée avec succès",
@@ -149,7 +150,7 @@ export default function Organize() {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "http://localhost:5001/api/login";
+          window.location.href = buildApiUrl(API_ENDPOINTS.LOGIN);
         }, 500);
         return;
       }

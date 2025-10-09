@@ -13,20 +13,20 @@ import { Loader2, Save, User, Shield, AlertTriangle } from "lucide-react";
 import { authenticatedApiRequest } from "@/lib/queryClient";
 import { useAuth, useAuthQuery } from "@/hooks/useAuth";
 import { useAuth as useOIDCAuth } from "react-oidc-context";
+import { API_ENDPOINTS } from "@/lib/apiConfig";
 
 interface UserProfile {
-  id: string;
+  user_id: string;
   email: string;
-  firstName?: string;
-  lastName?: string;
+  first_name?: string;
+  last_name?: string;
   phone?: string;
   university?: string;
-  cls?: string;
+  level?: string;
   verified: boolean;
   suspended: boolean;
-  subscriptionTier: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
 }
 
 const UNIVERSITY_OPTIONS = [
@@ -63,18 +63,18 @@ export default function UserProfile() {
   const oidcAuth = useOIDCAuth();
   
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
+    first_name: "",
+    last_name: "",
     phone: "",
     university: "",
-    cls: "",
+    level: "",
   });
 
   const [disableReason, setDisableReason] = useState("");
   const [customReason, setCustomReason] = useState("");
 
   // Fetch user profile
-  const { data: user, isLoading: userLoading, error } = useAuthQuery<UserProfile | null>(["https://localhost:3000/api/auth/user"], {
+  const { data: user, isLoading: userLoading, error } = useAuthQuery<UserProfile | null>([API_ENDPOINTS.USER_PROFILE], {
     on401: "throw",
   });
 
@@ -93,23 +93,23 @@ export default function UserProfile() {
   useEffect(() => {
     if (user) {
       setFormData({
-        firstName: user.firstName || "",
-        lastName: user.lastName || "",
+        first_name: user.first_name || "",
+        last_name: user.last_name || "",
         phone: user.phone || "",
         university: user.university || "",
-        cls: user.cls || "",
+        level: user.level || "",
       });
     }
   }, [user]);
 
   // Update profile mutation
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: { firstName: string; lastName: string; phone: string | null; university: string; cls: string }) => {
-      const response = await authenticatedApiRequest("PATCH", "https://localhost:3000/api/auth/user", data, oidcAuth.user?.access_token);
+    mutationFn: async (data: { first_name: string; last_name: string; phone: string | null; university: string; level: string }) => {
+      const response = await authenticatedApiRequest("PATCH", API_ENDPOINTS.USER_PROFILE, data, oidcAuth.user?.access_token);
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["https://localhost:3000/api/auth/user"] });
+      queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.USER_PROFILE] });
       toast({
         title: "Profil mis à jour",
         description: "Vos informations ont été mises à jour avec succès.",
@@ -129,7 +129,7 @@ export default function UserProfile() {
     mutationFn: async (reason: string) => {
       console.log('Making disable account request with reason:', reason);
       
-      const response = await authenticatedApiRequest("PATCH", "https://localhost:3000/api/auth/user/disable", { reason }, oidcAuth.user?.access_token);
+      const response = await authenticatedApiRequest("PATCH", API_ENDPOINTS.DISABLE_USER, { reason }, oidcAuth.user?.access_token);
       
       console.log('Disable account response status:', response.status);
       console.log('Disable account response headers:', Object.fromEntries(response.headers.entries()));
@@ -151,7 +151,7 @@ export default function UserProfile() {
       });
       // Redirect to logout after a short delay
       setTimeout(() => {
-        window.location.href = "https://localhost:3000/api/logout";
+        window.location.href = "/logout";
       }, 2000);
     },
     onError: (error) => {
@@ -173,11 +173,11 @@ export default function UserProfile() {
   const handleSave = () => {
     // Ensure phone is included even if empty
     const dataToSend = {
-      firstName: formData.firstName,
-      lastName: formData.lastName,
+      first_name: formData.first_name,
+      last_name: formData.last_name,
       phone: formData.phone, // Send null if empty
       university: formData.university,
-      cls: formData.cls,
+      level: formData.level,
     };
     console.log('Sending profile update data:', dataToSend);
     updateProfileMutation.mutate(dataToSend);
@@ -199,10 +199,10 @@ export default function UserProfile() {
   };
 
   const isFormValid = () => {
-    return formData.firstName.trim() && 
-           formData.lastName.trim() && 
+    return formData.first_name.trim() && 
+           formData.last_name.trim() && 
            formData.university && 
-           formData.cls;
+           formData.level;
   };
 
 
@@ -250,20 +250,20 @@ export default function UserProfile() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">Prénom *</Label>
+                <Label htmlFor="first_name">Prénom *</Label>
                 <Input
-                  id="firstName"
-                  value={formData.firstName}
-                  onChange={(e) => handleInputChange("firstName", e.target.value)}
+                  id="first_name"
+                  value={formData.first_name}
+                  onChange={(e) => handleInputChange("first_name", e.target.value)}
                   placeholder="Votre prénom"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Nom *</Label>
+                <Label htmlFor="last_name">Nom *</Label>
                 <Input
-                  id="lastName"
-                  value={formData.lastName}
-                  onChange={(e) => handleInputChange("lastName", e.target.value)}
+                  id="last_name"
+                  value={formData.last_name}
+                  onChange={(e) => handleInputChange("last_name", e.target.value)}
                   placeholder="Votre nom"
                 />
               </div>
@@ -300,10 +300,10 @@ export default function UserProfile() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="cls">Classe *</Label>
+                <Label htmlFor="level">Classe *</Label>
                 <Select
-                  value={formData.cls}
-                  onValueChange={(value) => handleInputChange("cls", value)}
+                  value={formData.level}
+                  onValueChange={(value) => handleInputChange("level", value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionnez votre classe" />
@@ -370,12 +370,12 @@ export default function UserProfile() {
               </div>
               <div>
                 <Label className="text-sm font-medium text-muted-foreground">Abonnement</Label>
-                <p className="text-sm capitalize">{user?.subscriptionTier}</p>
+                <p className="text-sm capitalize">free</p>
               </div>
               <div>
                 <Label className="text-sm font-medium text-muted-foreground">Membre depuis</Label>
                 <p className="text-sm">
-                  {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('fr-FR') : 'N/A'}
+                  {user?.created_at ? new Date(user.created_at).toLocaleDateString('fr-FR') : 'N/A'}
                 </p>
               </div>
             </div>

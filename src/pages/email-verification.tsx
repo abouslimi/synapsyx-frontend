@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Mail, CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
 import { authenticatedApiRequest } from "@/lib/queryClient";
+import { API_ENDPOINTS } from "@/lib/apiConfig";
 
 interface UserProfile {
   id: string;
@@ -22,9 +23,9 @@ export default function EmailVerification() {
 
   // Fetch user profile to check verification status
   const { data: user, isLoading, refetch } = useQuery({
-    queryKey: ["/api/auth/user"],
+    queryKey: [API_ENDPOINTS.USER_PROFILE],
     queryFn: async () => {
-      const response = await authenticatedApiRequest("GET", "/api/auth/user");
+      const response = await authenticatedApiRequest("GET", API_ENDPOINTS.USER_PROFILE);
       return response.json() as Promise<UserProfile>;
     },
     refetchInterval: 5000, // Check every 5 seconds for verification status
@@ -33,7 +34,7 @@ export default function EmailVerification() {
   // Resend verification email mutation
   const resendVerificationMutation = useMutation({
     mutationFn: async () => {
-      const response = await authenticatedApiRequest("POST", "/api/auth/resend-verification");
+      const response = await authenticatedApiRequest("POST", API_ENDPOINTS.RESEND_VERIFICATION);
       return response.json();
     },
     onSuccess: () => {

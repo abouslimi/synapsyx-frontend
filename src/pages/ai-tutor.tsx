@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { buildApiUrl, API_ENDPOINTS } from "@/lib/apiConfig";
 import { 
   Bot, 
   Send, 
@@ -43,14 +44,14 @@ export default function AiTutor() {
         variant: "destructive",
       });
       setTimeout(() => {
-        window.location.href = "http://localhost:5001/api/login";
+        window.location.href = "/login";
       }, 500);
       return;
     }
   }, [isAuthenticated, isLoading, toast]);
 
   const { data: chatHistory } = useQuery({
-    queryKey: ["/api/ai/chat"],
+    queryKey: [API_ENDPOINTS.AI_CHAT],
     queryFn: async ({ queryKey }) => {
       try {
         const response = await fetch(queryKey[0], {
@@ -66,7 +67,7 @@ export default function AiTutor() {
             variant: "destructive",
           });
           setTimeout(() => {
-            window.location.href = "http://localhost:5001/api/login";
+            window.location.href = "/login";
           }, 500);
           return [];
         }
@@ -94,14 +95,14 @@ export default function AiTutor() {
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: async (data: { message: string; context?: string }) => {
-      return await authenticatedApiRequest("POST", "/api/ai/chat", data);
+    mutationFn: async (data: { content: string; context?: string }) => {
+      return await authenticatedApiRequest("POST", API_ENDPOINTS.AI_CHAT, data);
     },
     onMutate: () => {
       setIsTyping(true);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/ai/chat"] });
+      queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.AI_CHAT] });
       queryClient.invalidateQueries({ queryKey: ["/api/ai/credits"] });
       setMessage("");
       setContext("");
@@ -118,7 +119,7 @@ export default function AiTutor() {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "http://localhost:5001/api/login";
+          window.location.href = buildApiUrl(API_ENDPOINTS.LOGIN);
         }, 500);
         return;
       }
@@ -155,7 +156,7 @@ export default function AiTutor() {
     }
 
     sendMessageMutation.mutate({
-      message: message.trim(),
+      content: message.trim(),
       context: context.trim() || undefined,
     });
   };

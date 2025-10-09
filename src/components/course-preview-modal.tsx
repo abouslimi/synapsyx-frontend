@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getAbsoluteUrl } from "@/lib/queryClient";
+import { API_ENDPOINTS } from "@/lib/apiConfig";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,9 +41,9 @@ export function CoursePreviewModal({
 
   // Fetch course statistics
   const { data: statistics } = useQuery({
-    queryKey: [`/api/courses/${course.id}/statistics`],
+    queryKey: [API_ENDPOINTS.COURSE_STATISTICS(course.id)],
     queryFn: async () => {
-      const response = await fetch(getAbsoluteUrl(`/api/courses/${course.id}/statistics`), {
+      const response = await fetch(getAbsoluteUrl(API_ENDPOINTS.COURSE_STATISTICS(course.id)), {
         credentials: "include",
       });
       if (!response.ok) throw new Error(response.statusText);

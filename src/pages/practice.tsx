@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckCircle, XCircle, Clock, RotateCcw, Filter } from "lucide-react";
 import { authenticatedApiRequest, queryClient } from "@/lib/queryClient";
+import { API_ENDPOINTS } from "@/lib/apiConfig";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Practice() {
@@ -26,7 +27,7 @@ export default function Practice() {
   const { toast } = useToast();
 
   const { data: questions } = useQuery({
-    queryKey: ["/api/questions", selectedFilters],
+    queryKey: [API_ENDPOINTS.QUESTIONS, selectedFilters],
     queryFn: async ({ queryKey }) => {
       const [url, filters] = queryKey;
       const params = new URLSearchParams();
@@ -46,21 +47,20 @@ export default function Practice() {
   });
 
   const { data: courses } = useQuery({
-    queryKey: ["/api/courses"],
+    queryKey: [API_ENDPOINTS.COURSES],
   });
 
   const submitAnswerMutation = useMutation({
     mutationFn: async (data: { questionId: string; answer: number; timeSpent: number }) => {
-      return await authenticatedApiRequest("POST", "/api/progress", {
-        questionId: data.questionId,
-        isCompleted: true,
-        score: data.answer,
-        timeSpent: data.timeSpent,
+      return await authenticatedApiRequest("POST", API_ENDPOINTS.PROGRESS, {
+        course_id: data.questionId, // This should be the course ID, not question ID
+        progress_percentage: data.answer === 1 ? 100 : 0,
+        study_time: data.timeSpent,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/progress"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/statistics"] });
+      queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.PROGRESS] });
+      queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.USER_STATISTICS] });
     },
   });
 

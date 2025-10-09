@@ -6,8 +6,19 @@
   "scripts": {
     "dev": "vite --port 5001",
     "build": "tsc -b && vite build",
+    "build:dev": "./build.sh dev",
+    "build:prod": "./build.sh prod",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:dev": "./deploy.sh dev",
+    "deploy:prod": "./deploy.sh prod",
+    "validate-api:dev": "./validate-api.sh dev",
+    "validate-api:prod": "./validate-api.sh prod",
+    "infra:install": "cd infrastructure && npm install",
+    "infra:deploy:dev": "cd infrastructure && npm run deploy:dev",
+    "infra:deploy:prod": "cd infrastructure && npm run deploy:prod",
+    "infra:destroy:dev": "cd infrastructure && npm run destroy:dev",
+    "infra:destroy:prod": "cd infrastructure && npm run destroy:prod"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

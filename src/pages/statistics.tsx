@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { buildApiUrl, API_ENDPOINTS } from "@/lib/apiConfig";
+import { authenticatedFetch } from "@/lib/authHelpers";
 import { 
   TrendingUp, 
   Clock, 
@@ -31,19 +33,17 @@ export default function Statistics() {
         variant: "destructive",
       });
       setTimeout(() => {
-        window.location.href = "http://localhost:5001/api/login";
+        window.location.href = "/login";
       }, 500);
       return;
     }
   }, [isAuthenticated, isLoading, toast]);
 
   const { data: statistics } = useQuery({
-    queryKey: ["/api/statistics"],
+    queryKey: [API_ENDPOINTS.USER_STATISTICS],
     queryFn: async ({ queryKey }) => {
       try {
-        const response = await fetch(queryKey[0], {
-          credentials: "include",
-        });
+        const response = await authenticatedFetch(queryKey[0]);
         if (!response.ok) throw new Error(response.statusText);
         return await response.json();
       } catch (error: any) {
@@ -54,7 +54,7 @@ export default function Statistics() {
             variant: "destructive",
           });
           setTimeout(() => {
-            window.location.href = "http://localhost:5001/api/login";
+            window.location.href = "/login";
           }, 500);
           return null;
         }
@@ -64,12 +64,10 @@ export default function Statistics() {
   });
 
   const { data: examResults } = useQuery({
-    queryKey: ["/api/exams"],
+    queryKey: [API_ENDPOINTS.ACHIEVEMENTS],
     queryFn: async ({ queryKey }) => {
       try {
-        const response = await fetch(queryKey[0], {
-          credentials: "include",
-        });
+        const response = await authenticatedFetch(queryKey[0]);
         if (!response.ok) throw new Error(response.statusText);
         return await response.json();
       } catch (error: any) {
@@ -82,7 +80,7 @@ export default function Statistics() {
   });
 
   useQuery({
-    queryKey: ["/api/progress"],
+    queryKey: [API_ENDPOINTS.PROGRESS],
     queryFn: async ({ queryKey }) => {
       try {
         const response = await fetch(queryKey[0], {

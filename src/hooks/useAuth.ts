@@ -59,7 +59,7 @@ export function useAuth() {
     if (!user) return false;
     // Only email auth provider users need verification
     // Other providers (Google, Facebook, Apple) are automatically verified
-    return user.authProvider === 'email' && !user.verified;
+    return (user.authProvider as string) in ['email', 'cognito'] && !user.verified;
   };
 
   return {

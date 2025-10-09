@@ -1,0 +1,30 @@
+{
+  "name": "synapsyx-ui-infrastructure",
+  "version": "1.0.0",
+  "description": "AWS CDK infrastructure for Synapsyx UI deployment",
+  "main": "bin/synapsyx-ui.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "jest",
+    "cdk": "cdk",
+    "deploy:dev": "cdk deploy SynapsyxUiDevStack --profile default",
+    "deploy:prod": "cdk deploy SynapsyxUiProdStack --profile default",
+    "destroy:dev": "cdk destroy SynapsyxUiDevStack --profile default",
+    "destroy:prod": "cdk destroy SynapsyxUiProdStack --profile default",
+    "diff:dev": "cdk diff SynapsyxUiDevStack --profile default",
+    "diff:prod": "cdk diff SynapsyxUiProdStack --profile default"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.5",
+    "@types/node": "20.6.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "aws-cdk": "2.100.0",
+    "typescript": "~5.2.2"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.100.0",
+    "constructs": "^10.0.0"
+  }
+}

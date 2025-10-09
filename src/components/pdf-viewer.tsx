@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getAbsoluteUrl } from '@/lib/queryClient';
+import { API_ENDPOINTS } from '@/lib/apiConfig';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -66,9 +67,9 @@ export function PdfViewer({ course, isOpen, onClose, isSummary = false }: PdfVie
 
   // Fetch presigned URL for PDF
   const { data: pdfUrl, isLoading: isLoadingPdf, error: pdfUrlError } = useQuery({
-    queryKey: [`/api/courses/${course.id}/pdf-url`],
+    queryKey: [API_ENDPOINTS.COURSE_PDF_URL(course.id)],
     queryFn: async () => {
-      const response = await fetch(getAbsoluteUrl(`/api/courses/${course.id}/pdf-url`));
+      const response = await fetch(getAbsoluteUrl(API_ENDPOINTS.COURSE_PDF_URL(course.id)));
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);

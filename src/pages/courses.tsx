@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, BookOpen, Download, Eye } from "lucide-react";
 import { useLocation } from "wouter";
+import { buildApiUrl, API_ENDPOINTS } from "@/lib/apiConfig";
+import { authenticatedFetch } from "@/lib/authHelpers";
 
 export default function Courses() {
   const [location] = useLocation();
@@ -20,7 +22,7 @@ export default function Courses() {
 
   const { data: courses, isLoading } = useQuery({
     queryKey: [
-      "/api/courses",
+      API_ENDPOINTS.COURSES,
       { 
         type: typeFilter !== "all" ? typeFilter : undefined,
         university: universityFilter !== "all" ? universityFilter : undefined,
@@ -37,9 +39,7 @@ export default function Courses() {
         });
       }
       
-      const response = await fetch(`${url}?${params.toString()}`, {
-        credentials: "include",
-      });
+      const response = await authenticatedFetch(`${url}?${params.toString()}`);
       if (!response.ok) throw new Error(response.statusText);
       return await response.json();
     },
