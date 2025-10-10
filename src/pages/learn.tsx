@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,13 +33,14 @@ import { QuizModal } from "@/components/quiz-modal";
 export default function Learn() {
   const { user } = useAuth();
   const oidcAuth = useOIDCAuth();
+  const queryClient = useQueryClient();
   
   const [searchTerm, setSearchTerm] = useState("");
   const [universityFilter, setUniversityFilter] = useState("all");
   const [yearFilter, setYearFilter] = useState("all");
   const [semesterFilter, setSemesterFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all"); // all, platform, user, shared
-  const [sortBy, setSortBy] = useState("name"); // name, theme, courseName, sectionName
+  const [sortBy, setSortBy] = useState("course_name"); // name, theme, courseName, sectionName
   const [sortOrder, setSortOrder] = useState("asc"); // asc, desc
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -58,18 +59,27 @@ export default function Learn() {
       const response = await authenticatedApiRequest("POST", API_ENDPOINTS.USER_PREFERENCES, { preferences }, oidcAuth.user?.access_token);
       return await response.json();
     },
+    onSuccess: () => {
+      // Invalidate the user preferences query to refetch the updated data
+      queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.USER_PREFERENCES] });
+    },
   });
 
-  // Initialize filters from user profile and saved preferences
+  console.log("#userPreferences", userPreferences);
+
+  // Initialize filters from user profile and saved preferences (only once)
   useEffect(() => {
-    if (user && userPreferences) {
+    if (user && (userPreferences as any)?.preferences) {
+      // Extract preferences from the flat structure: userPreferences.preferences
+      const actualPreferences = (userPreferences as any)?.preferences || {};
+      
       // Use saved preferences if available, otherwise use user profile defaults
-      const savedUniversity = userPreferences.universityFilter;
-      const savedYear = userPreferences.yearFilter;
-      const savedSemester = userPreferences.semesterFilter;
-      const savedSource = userPreferences.sourceFilter;
-      const savedSortBy = userPreferences.sortBy;
-      const savedSortOrder = userPreferences.sortOrder;
+      const savedUniversity = actualPreferences.universityFilter;
+      const savedYear = actualPreferences.yearFilter;
+      const savedSemester = actualPreferences.semesterFilter;
+      const savedSource = actualPreferences.sourceFilter;
+      const savedSortBy = actualPreferences.sortBy;
+      const savedSortOrder = actualPreferences.sortOrder;
       
       if (savedUniversity && savedUniversity !== "all") {
         setUniversityFilter(savedUniversity);
@@ -119,47 +129,71 @@ export default function Learn() {
   const handleUniversityChange = (value: string) => {
     setUniversityFilter(value);
     savePreferences({
-      ...userPreferences,
       universityFilter: value,
+      yearFilter,
+      semesterFilter,
+      sourceFilter,
+      sortBy,
+      sortOrder,
     });
   };
 
   const handleYearChange = (value: string) => {
     setYearFilter(value);
     savePreferences({
-      ...userPreferences,
+      universityFilter,
       yearFilter: value,
+      semesterFilter,
+      sourceFilter,
+      sortBy,
+      sortOrder,
     });
   };
 
   const handleSemesterChange = (value: string) => {
     setSemesterFilter(value);
     savePreferences({
-      ...userPreferences,
+      universityFilter,
+      yearFilter,
       semesterFilter: value,
+      sourceFilter,
+      sortBy,
+      sortOrder,
     });
   };
 
   const handleSourceChange = (value: string) => {
     setSourceFilter(value);
     savePreferences({
-      ...userPreferences,
+      universityFilter,
+      yearFilter,
+      semesterFilter,
       sourceFilter: value,
+      sortBy,
+      sortOrder,
     });
   };
 
   const handleSortByChange = (value: string) => {
     setSortBy(value);
     savePreferences({
-      ...userPreferences,
+      universityFilter,
+      yearFilter,
+      semesterFilter,
+      sourceFilter,
       sortBy: value,
+      sortOrder,
     });
   };
 
   const handleSortOrderChange = (value: string) => {
     setSortOrder(value);
     savePreferences({
-      ...userPreferences,
+      universityFilter,
+      yearFilter,
+      semesterFilter,
+      sourceFilter,
+      sortBy,
       sortOrder: value,
     });
   };
@@ -189,20 +223,22 @@ export default function Learn() {
         });
       }
       
-      const response = await fetch(`${url}?${params.toString()}`, {
-        credentials: "include",
-      });
-      if (!response.ok) throw new Error(response.statusText);
+      const response = await authenticatedApiRequest(
+        "GET",
+        `${url}?${params.toString()}`,
+        undefined,
+        oidcAuth.user?.access_token
+      );
       return await response.json();
     },
   });
 
-  const filteredCourses = courses?.filter((course: any) => 
-    course.sectionName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.courseName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.themeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.fileDescription?.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  const filteredCourses = Array.isArray(courses) ? courses.filter((course: any) => 
+    course.course_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    course.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    course.theme_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    course.university?.toLowerCase().includes(searchTerm.toLowerCase())
+  ) : [];
 
   const universityCourses = filteredCourses.filter((course: any) => course.type === "University");
 
@@ -233,7 +269,7 @@ export default function Learn() {
                   setYearFilter("all");
                   setSemesterFilter("all");
                   setSourceFilter("all");
-                  setSortBy("name");
+                  setSortBy("course_name");
                   setSortOrder("asc");
                 }}
                 className="text-muted-foreground hover:text-foreground"
@@ -328,11 +364,11 @@ export default function Learn() {
                         <SelectValue placeholder="Critère" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="name">Nom</SelectItem>
-                        <SelectItem value="theme">Thème</SelectItem>
-                        <SelectItem value="courseName">Nom du cours</SelectItem>
-                        <SelectItem value="sectionName">Section</SelectItem>
-                        <SelectItem value="createdAt">Date de création</SelectItem>
+                        <SelectItem value="course_name">Nom du cours</SelectItem>
+                        <SelectItem value="theme_name">Thème</SelectItem>
+                        <SelectItem value="university">Université</SelectItem>
+                        <SelectItem value="cls">Niveau</SelectItem>
+                        <SelectItem value="created_at">Date de création</SelectItem>
                       </SelectContent>
                     </Select>
                     <Button
@@ -679,52 +715,19 @@ function GroupedCourseGrid({
   }
 
   // Group courses by theme, then by course name
-  // Handle full documents as themes and single-section courses properly
   const groupedCourses = courses.reduce((acc: Record<string, Record<string, any[]>>, course: any) => {
-    // If it's a full document, treat it as a theme
-    if (course.isFullDocument) {
-      const themeName = course.themeName || course.courseName || 'Document complet';
-      if (!acc[themeName]) {
-        acc[themeName] = {};
-      }
-      if (!acc[themeName]['Document complet']) {
-        acc[themeName]['Document complet'] = [];
-      }
-      acc[themeName]['Document complet'].push(course);
-    } else {
-      const themeName = course.themeName || 'Sans thème';
-      
-      // Check if this course has only one section
-      const courseSections = courses.filter((c: any) => 
-        !c.isFullDocument && 
-        c.courseName === course.courseName && 
-        c.themeName === course.themeName
-      );
-      
-      if (courseSections.length === 1) {
-        // Single section course - group by theme with other single-section courses
-        if (!acc[themeName]) {
-          acc[themeName] = {};
-        }
-        if (!acc[themeName]['Cours individuels']) {
-          acc[themeName]['Cours individuels'] = [];
-        }
-        acc[themeName]['Cours individuels'].push(course);
-      } else {
-        // Multi-section course - group by course name
-        const courseName = course.courseName || 'Sans nom de cours';
-        
-        if (!acc[themeName]) {
-          acc[themeName] = {};
-        }
-        
-        if (!acc[themeName][courseName]) {
-          acc[themeName][courseName] = [];
-        }
-        
-        acc[themeName][courseName].push(course);
-      }
+    const themeName = course.theme_name || course.theme || 'Sans thème';
+    const courseName = course.course_name || 'Sans nom de cours';
+    
+    if (!acc[themeName]) {
+      acc[themeName] = {};
     }
+    
+    if (!acc[themeName][courseName]) {
+      acc[themeName][courseName] = [];
+    }
+    
+    acc[themeName][courseName].push(course);
     
     return acc;
   }, {} as Record<string, Record<string, any[]>>);
@@ -799,10 +802,7 @@ function CourseCard({
 }) {
   // Determine the title to display
   const getCardTitle = () => {
-    if (course.sectionName && course.courseName && course.sectionName !== course.courseName) {
-      return course.sectionName; // Show section name when different from course name
-    }
-    return course.sectionName || course.courseName || 'Sans titre';
+    return course.course_name || 'Sans titre';
   };
 
   return (
@@ -834,6 +834,9 @@ function CourseCard({
                   {course.type === 'University' ? 'Université' : course.type}
                 </Badge>
               )}
+              {course.theme_name && (
+                <Badge variant="default" className="text-xs">{course.theme_name}</Badge>
+              )}
             </div>
           </div>
         </div>
@@ -841,35 +844,34 @@ function CourseCard({
       <CardContent className="flex-1 flex flex-col pt-0">
         <div className="space-y-3 flex-1">
           <div className="text-sm text-muted-foreground space-y-1">
-            {course.courseName && course.sectionName && course.courseName !== course.sectionName && (
-              <div className="flex items-center gap-2">
-                <BookOpen className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate">{course.courseName}</span>
-              </div>
-            )}
-            {course.sectionName && (
+            {course.description && (
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate">{course.sectionName}</span>
+                <span className="truncate">{course.description}</span>
               </div>
             )}
-            {course.originalTotalPages && (
+            {course.year && (
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 flex-shrink-0" />
-                <span>
-                  {course.originalTotalPages} pages
-                  {course.sectionStart && course.sectionEnd && (
-                    <span className="text-muted-foreground">
-                      {' '}({course.sectionEnd - course.sectionStart + 1} pages de section)
-                    </span>
-                  )}
-                </span>
+                <span>Année {course.year}</span>
               </div>
             )}
-            {course.size && (
+            {course.version && (
               <div className="flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 flex-shrink-0" />
-                <span>{(course.size / 1024 / 1024).toFixed(1)} MB</span>
+                <span>Version {course.version}</span>
+              </div>
+            )}
+            {course.sections_count !== null && (
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4 flex-shrink-0" />
+                <span>{course.sections_count} sections</span>
+              </div>
+            )}
+            {course.questions_count !== null && (
+              <div className="flex items-center gap-2">
+                <Play className="w-4 h-4 flex-shrink-0" />
+                <span>{course.questions_count} questions</span>
               </div>
             )}
           </div>
@@ -905,7 +907,7 @@ function CourseCard({
                 <Play className="w-3 h-3 mr-1" />
                 <span className="hidden sm:inline">Quiz</span>
               </Button>
-              {course.summaryFilePath && (
+              {course.pdf_path && (
                 <Button 
                   size="sm" 
                   variant="outline"
