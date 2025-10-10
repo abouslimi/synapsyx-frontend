@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getAbsoluteUrl } from "@/lib/queryClient";
-import { API_ENDPOINTS } from "@/lib/apiConfig";
+import { authenticatedApiRequest } from "@/lib/queryClient";
+import { API_ENDPOINTS, type CourseSectionStatisticsResponse } from "@/lib/apiConfig";
+import { useAuth as useOIDCAuth } from "react-oidc-context";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,25 +32,28 @@ interface CoursePreviewModalProps {
 }
 
 export function CoursePreviewModal({ 
-  course, 
+  course: courseSection, 
   isOpen, 
   onClose, 
   onViewPdf, 
   onStartQuiz 
 }: CoursePreviewModalProps) {
   const [activeTab, setActiveTab] = useState("details");
+  const oidcAuth = useOIDCAuth();
 
-  // Fetch course statistics
-  const { data: statistics } = useQuery({
-    queryKey: [API_ENDPOINTS.COURSE_STATISTICS(course.id)],
+  // Fetch course section statistics
+  const { data: statistics } = useQuery<CourseSectionStatisticsResponse>({
+    queryKey: [API_ENDPOINTS.COURSE_SECTION_STATISTICS(courseSection.section_id || courseSection.id)],
     queryFn: async () => {
-      const response = await fetch(getAbsoluteUrl(API_ENDPOINTS.COURSE_STATISTICS(course.id)), {
-        credentials: "include",
-      });
-      if (!response.ok) throw new Error(response.statusText);
+      const response = await authenticatedApiRequest(
+        "GET",
+        API_ENDPOINTS.COURSE_SECTION_STATISTICS(courseSection.section_id || courseSection.id),
+        undefined,
+        oidcAuth.user?.access_token
+      );
       return await response.json();
     },
-    enabled: isOpen && !!course.id,
+    enabled: isOpen && !!(courseSection.section_id || courseSection.id),
   });
 
   const formatFileSize = (bytes: number) => {
@@ -61,17 +65,19 @@ export function CoursePreviewModal({
   };
 
   const getCorrectPercentage = () => {
-    if (!statistics || statistics.totalQuestions === 0) return 0;
-    return Math.round((statistics.correctAnswers / statistics.totalQuestions) * 100);
+    if (!statistics || statistics.total_questions === 0) return 0;
+    return statistics.accuracy_percentage;
   };
 
+  // console.log("#statistics", statistics);
+  // console.log("#course", courseSection);
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            {course.sectionName || course.courseName || 'Aperçu du cours'}
+            {courseSection.section_name || courseSection.course_name || 'Aperçu du cours'}
           </DialogTitle>
         </DialogHeader>
 
@@ -79,16 +85,16 @@ export function CoursePreviewModal({
           {/* Course Header */}
           <div className="flex items-start justify-between">
             <div className="space-y-2">
-              <h2 className="text-2xl font-bold">{course.sectionName || course.courseName}</h2>
+              <h2 className="text-2xl font-bold">{courseSection.section_name || courseSection.course_name}</h2>
               <div className="flex items-center gap-2">
-                {course.themeName && (
-                  <Badge variant="default">{course.themeName}</Badge>
+                {courseSection.theme_name && (
+                  <Badge variant="default">{courseSection.theme_name}</Badge>
                 )}
-                {course.university && (
-                  <Badge variant="outline">{course.university}</Badge>
+                {courseSection.university && (
+                  <Badge variant="outline">{courseSection.university}</Badge>
                 )}
-                {course.cls && (
-                  <Badge variant="outline">{course.cls}</Badge>
+                {courseSection.cls && (
+                  <Badge variant="outline">{courseSection.cls}</Badge>
                 )}
               </div>
             </div>
@@ -122,28 +128,28 @@ export function CoursePreviewModal({
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {course.courseName && (
+                    {courseSection.course_name && (
                       <div className="flex items-center gap-2">
                         <span className="font-medium">Nom du cours:</span>
-                        <span>{course.courseName}</span>
+                        <span>{courseSection.course_name}</span>
                       </div>
                     )}
-                    {course.sectionName && (
+                    {courseSection.section_name && (
                       <div className="flex items-center gap-2">
                         <span className="font-medium">Section:</span>
-                        <span>{course.sectionName}</span>
+                        <span>{courseSection.section_name}</span>
                       </div>
                     )}
-                    {course.themeName && (
+                    {courseSection.theme_name && (
                       <div className="flex items-center gap-2">
                         <span className="font-medium">Thème:</span>
-                        <span>{course.themeName}</span>
+                        <span>{courseSection.theme_name}</span>
                       </div>
                     )}
-                    {course.version && (
+                    {courseSection.year && (
                       <div className="flex items-center gap-2">
                         <span className="font-medium">Version:</span>
-                        <span>{course.version}</span>
+                        <span>{courseSection.year}</span>
                       </div>
                     )}
                   </CardContent>
@@ -158,25 +164,25 @@ export function CoursePreviewModal({
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {course.originalTotalPages && (
+                    {courseSection.original_total_pages && (
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4" />
                         <span className="font-medium">Pages:</span>
-                        <span>{course.originalTotalPages}</span>
+                        <span>{courseSection.original_total_pages}</span>
                       </div>
                     )}
-                    {course.size && (
+                    {courseSection.size && (
                       <div className="flex items-center gap-2">
                         <BarChart3 className="h-4 w-4" />
                         <span className="font-medium">Taille:</span>
-                        <span>{formatFileSize(course.size)}</span>
+                        <span>{formatFileSize(courseSection.size)}</span>
                       </div>
                     )}
-                    {course.fileDescription && (
+                    {courseSection.file_description && (
                       <div className="space-y-1">
                         <span className="font-medium">Description:</span>
                         <p className="text-sm text-muted-foreground">
-                          {course.fileDescription}
+                          {courseSection.file_description}
                         </p>
                       </div>
                     )}
@@ -221,7 +227,7 @@ export function CoursePreviewModal({
                         <FileText className="h-4 w-4 text-blue-600" />
                         <div>
                           <p className="text-sm font-medium">Questions totales</p>
-                          <p className="text-2xl font-bold">{statistics.totalQuestions}</p>
+                          <p className="text-2xl font-bold">{statistics.total_questions}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -233,7 +239,7 @@ export function CoursePreviewModal({
                         <CheckCircle className="h-4 w-4 text-green-600" />
                         <div>
                           <p className="text-sm font-medium">Réponses correctes</p>
-                          <p className="text-2xl font-bold">{statistics.correctAnswers}</p>
+                          <p className="text-2xl font-bold">{statistics.correct_answers}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -245,7 +251,7 @@ export function CoursePreviewModal({
                         <XCircle className="h-4 w-4 text-red-600" />
                         <div>
                           <p className="text-sm font-medium">Réponses incorrectes</p>
-                          <p className="text-2xl font-bold">{statistics.incorrectAnswers}</p>
+                          <p className="text-2xl font-bold">{statistics.answered_questions - statistics.correct_answers}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -257,11 +263,24 @@ export function CoursePreviewModal({
                         <Percent className="h-4 w-4 text-purple-600" />
                         <div>
                           <p className="text-sm font-medium">Pourcentage</p>
-                          <p className="text-2xl font-bold">{getCorrectPercentage()}%</p>
+                          <p className="text-2xl font-bold">{getCorrectPercentage().toFixed(1)}%</p>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
+
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-orange-600" />
+                        <div>
+                          <p className="text-sm font-medium">Temps d'étude</p>
+                          <p className="text-2xl font-bold">{Math.floor(statistics.study_time / 60)}h {statistics.study_time % 60}m</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
                 </div>
               ) : (
                 <Card>

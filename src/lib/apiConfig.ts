@@ -55,6 +55,7 @@ export const API_ENDPOINTS = {
   COURSE_SECTION_PDF_URL: (sectionId: string) => `/api/course-sections/${sectionId}/pdf-url`,
   COURSE_SECTION_SUMMARY: (sectionId: string) => `/api/course-sections/${sectionId}/summary`,
   COURSE_SECTION_QUESTIONS: (sectionId: string) => `/api/course-sections/${sectionId}/questions`,
+  COURSE_SECTION_STATISTICS: (sectionId: string) => `/api/course-sections/${sectionId}/statistics`,
   
   // Question endpoints
   QUESTIONS: '/api/questions/',
@@ -371,4 +372,26 @@ export interface AchievementResponse {
   icon_url?: string;
   earned_at: string;
   points: number;
+}
+
+export interface CourseStatisticsResponse {
+  course_id: string;
+  total_sections: number;
+  completed_sections: number;
+  total_questions: number;
+  answered_questions: number;
+  correct_answers: number;
+  accuracy_percentage: number;
+  study_time: number;
+  last_accessed: string | null;
+}
+
+export interface CourseSectionStatisticsResponse {
+  section_id: string;
+  total_questions: number;
+  answered_questions: number;
+  correct_answers: number;
+  accuracy_percentage: number;
+  study_time: number;
+  last_accessed: string | null;
 }

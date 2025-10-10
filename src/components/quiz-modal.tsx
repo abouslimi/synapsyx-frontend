@@ -89,7 +89,7 @@ export function QuizModal({ course, isOpen, onClose }: QuizModalProps) {
       return await response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/courses/${course.id}/statistics`] });
+      queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.COURSE_SECTION_STATISTICS(course.section_id || course.id)] });
     },
   });
 
