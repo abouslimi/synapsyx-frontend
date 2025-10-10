@@ -33,6 +33,7 @@ import { PDFEmbed } from './pdf-embed';
 
 interface Course {
   id: string;
+  section_id?: string;
   title: string;
   description?: string;
   splitPageCount?: number;
@@ -65,11 +66,14 @@ export function PdfViewer({ course, isOpen, onClose, isSummary = false }: PdfVie
   // const [selectedAnnotation, setSelectedAnnotation] = useState<any>(null);
   const [showAnnotationPanel, setShowAnnotationPanel] = useState(false);
 
-  // Fetch presigned URL for PDF
+  // Fetch presigned URL for PDF - use section endpoint if available, otherwise course endpoint
   const { data: pdfUrl, isLoading: isLoadingPdf, error: pdfUrlError } = useQuery({
-    queryKey: [API_ENDPOINTS.COURSE_PDF_URL(course.id)],
+    queryKey: [course.section_id ? API_ENDPOINTS.COURSE_SECTION_PDF_URL(course.section_id) : API_ENDPOINTS.COURSE_PDF_URL(course.id)],
     queryFn: async () => {
-      const response = await fetch(getAbsoluteUrl(API_ENDPOINTS.COURSE_PDF_URL(course.id)));
+      const endpoint = course.section_id 
+        ? API_ENDPOINTS.COURSE_SECTION_PDF_URL(course.section_id)
+        : API_ENDPOINTS.COURSE_PDF_URL(course.id);
+      const response = await fetch(getAbsoluteUrl(endpoint));
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
@@ -77,7 +81,7 @@ export function PdfViewer({ course, isOpen, onClose, isSummary = false }: PdfVie
       const data = await response.json();
       return data.presignedUrl;
     },
-    enabled: isOpen && !!course.id,
+    enabled: isOpen && (!!course.id || !!course.section_id),
     retry: false, // Don't retry on 404 errors
   });
 

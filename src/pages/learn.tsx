@@ -65,8 +65,6 @@ export default function Learn() {
     },
   });
 
-  console.log("#userPreferences", userPreferences);
-
   // Initialize filters from user profile and saved preferences (only once)
   useEffect(() => {
     if (user && (userPreferences as any)?.preferences) {
@@ -81,16 +79,12 @@ export default function Learn() {
       const savedSortBy = actualPreferences.sortBy;
       const savedSortOrder = actualPreferences.sortOrder;
       
-      if (savedUniversity && savedUniversity !== "all") {
+      if (savedUniversity) {
         setUniversityFilter(savedUniversity);
-      } else if ((user as any).university) {
-        setUniversityFilter((user as any).university);
       }
       
-      if (savedYear && savedYear !== "all") {
+      if (savedYear) {
         setYearFilter(savedYear);
-      } else if ((user as any).cls) {
-        setYearFilter((user as any).cls);
       }
 
       if (savedSemester) {
@@ -122,6 +116,24 @@ export default function Learn() {
   // Save preferences when filters change
   const savePreferences = (newPreferences: any) => {
     if (user) {
+      // First invalidate and refetch courses with new filters
+      queryClient.invalidateQueries({ 
+        queryKey: [
+          API_ENDPOINTS.COURSES,
+          { 
+            type: "University",
+            university: newPreferences.universityFilter !== "all" ? newPreferences.universityFilter : undefined,
+            year: newPreferences.yearFilter !== "all" ? newPreferences.yearFilter : undefined,
+            semester: newPreferences.semesterFilter !== "all" ? newPreferences.semesterFilter : undefined,
+            source: newPreferences.sourceFilter !== "all" ? newPreferences.sourceFilter : undefined,
+            sort_by: newPreferences.sortBy,
+            sort_order: newPreferences.sortOrder,
+            search: searchTerm || undefined,
+          }
+        ]
+      });
+      
+      // Then save the preferences
       savePreferencesMutation.mutate(newPreferences);
     }
   };
@@ -198,7 +210,7 @@ export default function Learn() {
     });
   };
 
-  const { data: courses, isLoading } = useQuery({
+  const { data: coursesData, isLoading } = useQuery({
     queryKey: [
       API_ENDPOINTS.COURSES,
       { 
@@ -209,6 +221,9 @@ export default function Learn() {
         source: sourceFilter !== "all" ? sourceFilter : undefined,
         sort_by: sortBy,
         sort_order: sortOrder,
+        include_sections: true,
+        page: 1,
+        per_page: 100,
       }
     ],
     queryFn: async ({ queryKey }) => {
@@ -233,12 +248,53 @@ export default function Learn() {
     },
   });
 
-  const filteredCourses = Array.isArray(courses) ? courses.filter((course: any) => 
-    course.course_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.theme_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.university?.toLowerCase().includes(searchTerm.toLowerCase())
-  ) : [];
+  // Search query for when search term is provided
+  const { data: searchData, isLoading: isSearching } = useQuery({
+    queryKey: [
+      API_ENDPOINTS.COURSES_SEARCH,
+      { 
+        keyword: searchTerm,
+        type: "University",
+        university: universityFilter !== "all" ? universityFilter : undefined,
+        year: yearFilter !== "all" ? yearFilter : undefined,
+        semester: semesterFilter !== "all" ? semesterFilter : undefined,
+        source: sourceFilter !== "all" ? sourceFilter : undefined,
+        sort_by: sortBy,
+        sort_order: sortOrder,
+        include_sections: true,
+        page: 1,
+        per_page: 100,
+      }
+    ],
+    queryFn: async ({ queryKey }) => {
+      const [url, filters] = queryKey;
+      const params = new URLSearchParams();
+      
+      if (filters && typeof filters === 'object') {
+        Object.entries(filters).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== "") {
+            params.append(key, value as string);
+          }
+        });
+      }
+      
+      const response = await authenticatedApiRequest(
+        "GET",
+        `${url}?${params.toString()}`,
+        undefined,
+        oidcAuth.user?.access_token
+      );
+      return await response.json();
+    },
+    enabled: !!searchTerm && searchTerm.length > 0,
+  });
+
+  // Use search results if search term exists, otherwise use regular courses
+  const courses = searchTerm && searchTerm.length > 0 
+    ? (searchData?.courses || [])
+    : (coursesData?.courses || []);
+
+  const filteredCourses = courses;
 
   const universityCourses = filteredCourses.filter((course: any) => course.type === "University");
 
@@ -345,8 +401,8 @@ export default function Learn() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Tous les semestres</SelectItem>
-                      <SelectItem value="s1">Semestre 1</SelectItem>
-                      <SelectItem value="s2">Semestre 2</SelectItem>
+                      <SelectItem value="1">Semestre 1</SelectItem>
+                      <SelectItem value="2">Semestre 2</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -410,7 +466,7 @@ export default function Learn() {
                   )}
                   {semesterFilter !== "all" && (
                     <Badge variant="secondary" className="text-xs">
-                      Semestre: {semesterFilter === "s1" ? "Semestre 1" : "Semestre 2"}
+                      Semestre: {semesterFilter === "1" ? "Semestre 1" : "Semestre 2"}
                     </Badge>
                   )}
                   {sourceFilter !== "all" && (
@@ -437,7 +493,7 @@ export default function Learn() {
                     Cours organisés par cycles PCEM1, PCEM2, DCEM1-3
                   </p>
                 </div>
-                {!isLoading && (
+                {!isLoading && !isSearching && (
                   <div className="text-sm text-muted-foreground">
                     {universityCourses.length} cours trouvé{universityCourses.length > 1 ? 's' : ''}
                   </div>
@@ -446,7 +502,7 @@ export default function Learn() {
             </div>
             <GroupedCourseGrid 
               courses={universityCourses} 
-              isLoading={isLoading}
+              isLoading={isLoading || isSearching}
               onPreview={(course) => {
                 setSelectedCourse(course);
                 setShowPreview(true);
@@ -724,7 +780,7 @@ function GroupedCourseGrid({
     );
   }
 
-  // Group courses by theme, then by course name
+  // Group courses by theme, then by course name, handling sections
   const groupedCourses = courses.reduce((acc: Record<string, Record<string, any[]>>, course: any) => {
     const themeName = course.theme_name || course.theme || 'Sans thème';
     const courseName = course.course_name || 'Sans nom de cours';
@@ -737,7 +793,30 @@ function GroupedCourseGrid({
       acc[themeName][courseName] = [];
     }
     
-    acc[themeName][courseName].push(course);
+    // If course has sections, add each section as a separate item
+    if (course.sections && course.sections.length > 0) {
+      course.sections.forEach((section: any) => {
+        acc[themeName][courseName].push({
+          ...section,
+          course_name: course.course_name,
+          theme_name: course.theme_name,
+          university: course.university,
+          cls: course.cls,
+          semester: course.semester,
+          type: course.type,
+          id: section.section_id, // Use section_id as the main id
+          section_id: section.section_id,
+          title: section.section_name,
+        });
+      });
+    } else {
+      // If no sections, add the course itself
+      acc[themeName][courseName].push({
+        ...course,
+        id: course.course_id,
+        title: course.course_name,
+      });
+    }
     
     return acc;
   }, {} as Record<string, Record<string, any[]>>);
@@ -812,7 +891,7 @@ function CourseCard({
 }) {
   // Determine the title to display
   const getCardTitle = () => {
-    return course.course_name || 'Sans titre';
+    return course.section_name || course.course_name || 'Sans titre';
   };
 
   return (
@@ -836,7 +915,7 @@ function CourseCard({
               )}
               {course.semester && (
                 <Badge variant="secondary" className="text-xs">
-                  {course.semester === 's1' ? 'S1' : 'S2'}
+                  {course.semester === '1' ? 'S1' : 'S2'}
                 </Badge>
               )}
               {course.type && (
@@ -872,16 +951,22 @@ function CourseCard({
                 <span>Version {course.version}</span>
               </div>
             )}
-            {course.sections_count !== null && (
+            {course.split_page_count && (
               <div className="flex items-center gap-2">
                 <BookOpen className="w-4 h-4 flex-shrink-0" />
-                <span>{course.sections_count} sections</span>
+                <span>{course.split_page_count} pages</span>
               </div>
             )}
             {course.questions_count !== null && (
               <div className="flex items-center gap-2">
                 <Play className="w-4 h-4 flex-shrink-0" />
                 <span>{course.questions_count} questions</span>
+              </div>
+            )}
+            {course.size && (
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 flex-shrink-0" />
+                <span>{(course.size / 1024 / 1024).toFixed(1)} MB</span>
               </div>
             )}
           </div>
@@ -917,7 +1002,7 @@ function CourseCard({
                 <Play className="w-3 h-3 mr-1" />
                 <span className="hidden sm:inline">Quiz</span>
               </Button>
-              {course.pdf_path && (
+              {(course.summary_file_path || course.pdf_path) && (
                 <Button 
                   size="sm" 
                   variant="outline"

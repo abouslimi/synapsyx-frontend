@@ -43,12 +43,18 @@ export const API_ENDPOINTS = {
   
   // Course endpoints
   COURSES: '/api/courses/',
+  COURSES_SEARCH: '/api/courses/search',
   COURSE_DETAILS: (courseId: string) => `/api/courses/${courseId}`,
   COURSE_RANDOM_QUESTIONS: (courseId: string) => `/api/courses/${courseId}/questions/random`,
   COURSE_STATISTICS: (courseId: string) => `/api/courses/${courseId}/statistics`,
   COURSE_PDF_URL: (courseId: string) => `/api/courses/${courseId}/pdf-url`,
   COURSE_SUMMARY: (courseId: string) => `/api/courses/${courseId}/summary`,
   COURSE_INTERACTIVE_CONTENT: (courseId: string) => `/api/courses/${courseId}/interactive-content`,
+  
+  // Course section endpoints
+  COURSE_SECTION_PDF_URL: (sectionId: string) => `/api/course-sections/${sectionId}/pdf-url`,
+  COURSE_SECTION_SUMMARY: (sectionId: string) => `/api/course-sections/${sectionId}/summary`,
+  COURSE_SECTION_QUESTIONS: (sectionId: string) => `/api/course-sections/${sectionId}/questions`,
   
   // Question endpoints
   QUESTIONS: '/api/questions/',
@@ -144,7 +150,7 @@ export interface CourseResponse {
   year?: number;
   theme?: string;
   pdf_path?: string;
-  type: 'University' | 'Professional';
+  type: 'University' | 'ECN' | 'Professional';
   cls?: string;
   semester?: string;
   version?: string;
@@ -154,6 +160,62 @@ export interface CourseResponse {
   created_at: string;
   sections_count?: number;
   questions_count?: number;
+  sections?: CourseSectionResponse[];
+}
+
+export interface CourseSectionResponse {
+  section_id: string;
+  course_id: string;
+  section_name: string;
+  file_storage: string;
+  file_path: string;
+  section_start?: number;
+  section_end?: number;
+  split_page_count?: number;
+  original_total_pages?: number;
+  file_description?: string;
+  summary_file_path?: string;
+  size?: number;
+  is_full_document: boolean;
+  is_free: boolean;
+  has_interactive_content: boolean;
+  interactive_content_types?: string[];
+  created_at: string;
+  updated_at: string;
+  university?: string;
+  year?: number;
+  semester?: string;
+  type?: string;
+  cls?: string;
+  theme_name?: string;
+  theme_number?: number;
+  summaries_count?: number;
+  questions_count?: number;
+  course?: CourseInfo;
+}
+
+export interface CourseInfo {
+  course_id: string;
+  course_name: string;
+  description?: string;
+  university?: string;
+  year?: number;
+  theme?: string;
+  type: 'University' | 'ECN' | 'Professional';
+  cls?: string;
+  semester?: string;
+  theme_name?: string;
+  theme_number?: number;
+  created_at: string;
+}
+
+export interface CourseSectionSummaryResponse {
+  summary_id: string;
+  section_id: string;
+  content: string;
+  confidence?: number;
+  timestamp: string;
+  references?: string[];
 }
 
 export interface CourseListResponse {

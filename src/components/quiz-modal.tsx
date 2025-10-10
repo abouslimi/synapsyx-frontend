@@ -52,17 +52,21 @@ export function QuizModal({ course, isOpen, onClose }: QuizModalProps) {
   
   const queryClient = useQueryClient();
 
-  // Fetch random questions for the course
+  // Fetch questions for the course or section
   const { data: questions, isLoading: isLoadingQuestions } = useQuery({
-    queryKey: [API_ENDPOINTS.COURSE_RANDOM_QUESTIONS(course.id)],
+    queryKey: [course.section_id ? API_ENDPOINTS.COURSE_SECTION_QUESTIONS(course.section_id) : API_ENDPOINTS.COURSE_RANDOM_QUESTIONS(course.id)],
     queryFn: async () => {
-      const response = await fetch(getAbsoluteUrl(`${API_ENDPOINTS.COURSE_RANDOM_QUESTIONS(course.id)}?count=10&difficulty=${currentDifficulty}`), {
+      const endpoint = course.section_id 
+        ? `${API_ENDPOINTS.COURSE_SECTION_QUESTIONS(course.section_id)}?count=10&difficulty=${currentDifficulty}`
+        : `${API_ENDPOINTS.COURSE_RANDOM_QUESTIONS(course.id)}?count=10&difficulty=${currentDifficulty}`;
+      const response = await fetch(getAbsoluteUrl(endpoint), {
         credentials: "include",
       });
       if (!response.ok) throw new Error(response.statusText);
-      return await response.json();
+      const data = await response.json();
+      return course.section_id ? data.questions : data;
     },
-    enabled: isOpen && !!course.id && quizStarted,
+    enabled: isOpen && (!!course.id || !!course.section_id) && quizStarted,
   });
 
   // Submit quiz result mutation
@@ -76,6 +80,7 @@ export function QuizModal({ course, isOpen, onClose }: QuizModalProps) {
         credentials: "include",
         body: JSON.stringify({
           course_id: course.id,
+          course_section_id: course.section_id,
           questions: answers.map(a => ({ question_id: a.questionId, answer: a.answer })),
           time_taken: result.timeSpent,
         }),
