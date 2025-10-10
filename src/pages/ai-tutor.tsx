@@ -23,11 +23,13 @@ import {
 import { authenticatedApiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useAuth as useOIDCAuth } from "react-oidc-context";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
 export default function AiTutor() {
+  const oidcAuth = useOIDCAuth();
   const [message, setMessage] = useState("");
   const [context, setContext] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -96,7 +98,7 @@ export default function AiTutor() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async (data: { content: string; context?: string }) => {
-      return await authenticatedApiRequest("POST", API_ENDPOINTS.AI_CHAT, data);
+      return await authenticatedApiRequest("POST", API_ENDPOINTS.AI_CHAT, data, oidcAuth.user?.access_token);
     },
     onMutate: () => {
       setIsTyping(true);

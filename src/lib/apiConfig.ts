@@ -35,6 +35,7 @@ export const API_ENDPOINTS = {
   RESEND_VERIFICATION: '/api/auth/resend-verification',
   CONFIRM_VERIFICATION: '/api/auth/confirm-verification',
   DISABLE_USER: '/api/auth/user/disable',
+  LOGIN: '/api/auth/login',
   
   // User endpoints
   USER_PREFERENCES: '/api/users/preferences',
@@ -69,6 +70,7 @@ export const API_ENDPOINTS = {
   AI_CHAT_SESSION_DETAILS: (sessionId: string) => `/api/ai/chat/session/${sessionId}`,
   AI_SUMMARY_GENERATE: '/api/ai/summary/generate',
   AI_SUMMARY_DETAILS: (summaryId: string) => `/api/ai/summary/${summaryId}`,
+  AI_CREDITS: '/api/ai/credits',
   
   // Subscription endpoints
   SUBSCRIPTION: '/api/subscriptions/',

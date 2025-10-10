@@ -12,8 +12,10 @@ import { CheckCircle, XCircle, Clock, RotateCcw, Filter } from "lucide-react";
 import { authenticatedApiRequest, queryClient } from "@/lib/queryClient";
 import { API_ENDPOINTS } from "@/lib/apiConfig";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth as useOIDCAuth } from "react-oidc-context";
 
 export default function Practice() {
+  const oidcAuth = useOIDCAuth();
   const [selectedFilters, setSelectedFilters] = useState({
     difficulty: "all",
     tags: "all",
@@ -56,7 +58,7 @@ export default function Practice() {
         course_id: data.questionId, // This should be the course ID, not question ID
         progress_percentage: data.answer === 1 ? 100 : 0,
         study_time: data.timeSpent,
-      });
+      }, oidcAuth.user?.access_token);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.PROGRESS] });

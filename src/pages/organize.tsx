@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { authenticatedApiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { useAuth as useOIDCAuth } from "react-oidc-context";
 
 const scheduleSchema = z.object({
   title: z.string().min(1, "Le titre est requis"),
@@ -46,6 +47,7 @@ const scheduleSchema = z.object({
 type ScheduleFormData = z.infer<typeof scheduleSchema>;
 
 export default function Organize() {
+  const oidcAuth = useOIDCAuth();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -100,7 +102,7 @@ export default function Organize() {
       return await authenticatedApiRequest("POST", API_ENDPOINTS.PROGRESS, {
         ...data,
         scheduledDate: data.scheduledDate.toISOString(),
-      });
+      }, oidcAuth.user?.access_token);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.PROGRESS] });
@@ -133,7 +135,7 @@ export default function Organize() {
 
   const updateScheduleMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<any> }) => {
-      return await authenticatedApiRequest("PATCH", `${API_ENDPOINTS.PROGRESS}/${id}`, data);
+      return await authenticatedApiRequest("PATCH", `${API_ENDPOINTS.PROGRESS}/${id}`, data, oidcAuth.user?.access_token);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.PROGRESS] });

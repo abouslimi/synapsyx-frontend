@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { buildApiUrl, API_ENDPOINTS } from "@/lib/apiConfig";
+import { API_ENDPOINTS } from "@/lib/apiConfig";
 import { authenticatedFetch } from "@/lib/authHelpers";
 import {
   Play,
@@ -20,9 +20,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { authenticatedApiRequest } from "@/lib/queryClient";
+import { useAuth as useOIDCAuth } from "react-oidc-context";
 
 export default function Home() {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const oidcAuth = useOIDCAuth();
   const { toast } = useToast();
   const [aiMessage, setAiMessage] = useState("");
 
@@ -123,7 +125,7 @@ export default function Home() {
     try {
       await authenticatedApiRequest("POST", API_ENDPOINTS.AI_CHAT, {
         content: aiMessage,
-      });
+      }, oidcAuth.user?.access_token);
       
       setAiMessage("");
       toast({

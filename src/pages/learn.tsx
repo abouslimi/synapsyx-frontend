@@ -9,6 +9,8 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { authenticatedApiRequest } from "@/lib/queryClient";
 import { API_ENDPOINTS } from "@/lib/apiConfig";
+import { useAuthQuery, useAuth } from "@/hooks/useAuth";
+import { useAuth as useOIDCAuth } from "react-oidc-context";
 import { 
   Search, 
   BookOpen, 
@@ -24,13 +26,13 @@ import {
   Clock,
   BarChart3
 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
 import { CoursePreviewModal } from "@/components/course-preview-modal";
 import { PdfViewer } from "@/components/pdf-viewer";
 import { QuizModal } from "@/components/quiz-modal";
 
 export default function Learn() {
   const { user } = useAuth();
+  const oidcAuth = useOIDCAuth();
   
   const [searchTerm, setSearchTerm] = useState("");
   const [universityFilter, setUniversityFilter] = useState("all");
@@ -46,19 +48,14 @@ export default function Learn() {
   const [showSummaryViewer, setShowSummaryViewer] = useState(false);
 
   // Fetch user preferences
-  const { data: userPreferences } = useQuery({
-    queryKey: [API_ENDPOINTS.USER_PREFERENCES],
-    queryFn: async () => {
-      const response = await authenticatedApiRequest("GET", API_ENDPOINTS.USER_PREFERENCES);
-      return await response.json();
-    },
+  const { data: userPreferences } = useAuthQuery([API_ENDPOINTS.USER_PREFERENCES], {
     enabled: !!user,
   });
 
   // Save preferences mutation
   const savePreferencesMutation = useMutation({
     mutationFn: async (preferences: any) => {
-      const response = await authenticatedApiRequest("POST", API_ENDPOINTS.USER_PREFERENCES, { preferences });
+      const response = await authenticatedApiRequest("POST", API_ENDPOINTS.USER_PREFERENCES, { preferences }, oidcAuth.user?.access_token);
       return await response.json();
     },
   });
