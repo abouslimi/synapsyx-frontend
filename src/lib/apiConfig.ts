@@ -86,6 +86,9 @@ export const API_ENDPOINTS = {
   
   // System endpoints
   HEALTH: '/health',
+  
+  // Adobe PDF Viewer configuration
+  ADOBE_CONFIG: '/api/adobe/config',
 } as const;
 
 // API Response Types based on OpenAPI schema
