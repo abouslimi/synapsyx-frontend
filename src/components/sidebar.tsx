@@ -143,22 +143,22 @@ export function Sidebar() {
         {/* Navigation */}
         <nav className="mt-8 flex-1 px-2 space-y-1" data-testid="navigation">
           {navigation.map((item) => (
-            <Link key={item.name} href={item.href}>
-              <a
-                className={cn(
-                  "text-foreground hover:bg-muted group flex items-center px-2 py-2 text-sm font-medium rounded-md",
-                  item.current && "bg-primary text-primary-foreground"
-                )}
-                data-testid={`nav-item-${item.name.toLowerCase().replace(' ', '-')}`}
-              >
-                <item.icon className="text-muted-foreground mr-3 flex-shrink-0 h-5 w-5" />
-                {item.name}
-                {item.badge && (
-                  <span className="ml-auto inline-block py-0.5 px-2 text-xs bg-accent text-accent-foreground rounded-full">
-                    {item.badge}
-                  </span>
-                )}
-              </a>
+            <Link 
+              key={item.name} 
+              href={item.href}
+              className={cn(
+                "text-foreground hover:bg-muted group flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                item.current && "bg-primary text-primary-foreground"
+              )}
+              data-testid={`nav-item-${item.name.toLowerCase().replace(' ', '-')}`}
+            >
+              <item.icon className="text-muted-foreground mr-3 flex-shrink-0 h-5 w-5" />
+              {item.name}
+              {item.badge && (
+                <span className="ml-auto inline-block py-0.5 px-2 text-xs bg-accent text-accent-foreground rounded-full">
+                  {item.badge}
+                </span>
+              )}
             </Link>
           ))}
         </nav>
@@ -200,14 +200,13 @@ export function Sidebar() {
             {isUserDropdownOpen && (
               <div className="absolute bottom-full left-0 right-0 mb-2 bg-card border border-border rounded-md shadow-lg z-50">
                 <div className="py-1">
-                  <Link href="/user-profile">
-                    <a
-                      className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                      data-testid="profile-button"
-                    >
-                      <Settings className="mr-3 h-4 w-4" />
-                      Mon profil
-                    </a>
+                  <Link 
+                    href="/user-profile"
+                    className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                    data-testid="profile-button"
+                  >
+                    <Settings className="mr-3 h-4 w-4" />
+                    Mon profil
                   </Link>
                   <button
                     onClick={handleLogout}
