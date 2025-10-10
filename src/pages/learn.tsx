@@ -271,6 +271,16 @@ export default function Learn() {
                   setSourceFilter("all");
                   setSortBy("course_name");
                   setSortOrder("asc");
+                  
+                  // Save the reset preferences
+                  savePreferences({
+                    universityFilter: "all",
+                    yearFilter: "all",
+                    semesterFilter: "all",
+                    sourceFilter: "all",
+                    sortBy: "course_name",
+                    sortOrder: "asc",
+                  });
                 }}
                 className="text-muted-foreground hover:text-foreground"
               >
