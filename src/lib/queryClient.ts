@@ -1,5 +1,5 @@
 import { QueryClient, type QueryFunction } from "@tanstack/react-query";
-import { API_BASE_URL } from "./apiConfig";
+import { API_BASE_URL, API_ENDPOINTS, type CognitoRegistrationRequest, type UserResponse } from "./apiConfig";
 
 // Helper function to convert relative URLs to absolute URLs
 export function getAbsoluteUrl(url: string): string {
@@ -123,6 +123,21 @@ export const getQueryFn: <T>(options: {
     console.log('Response data:', result);
     return result;
   };
+
+// Registration API function
+export async function registerCognitoUser(
+  registrationData: CognitoRegistrationRequest,
+  token: string
+): Promise<UserResponse> {
+  const response = await authenticatedApiRequest(
+    'POST',
+    API_ENDPOINTS.REGISTER,
+    registrationData,
+    token
+  );
+  
+  return response.json();
+}
 
 export const queryClient = new QueryClient({
   defaultOptions: {

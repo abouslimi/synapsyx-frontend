@@ -80,6 +80,27 @@ export const API_ENDPOINTS = {
 } as const;
 
 // API Response Types based on OpenAPI schema
+export interface CognitoRegistrationRequest {
+  aud: string;
+  cognito_username: string;
+  email: string;
+  email_verified: string;
+  exp: number;
+  family_name?: string | null;
+  given_name?: string | null;
+  iat: number;
+  iss: string;
+  sub: string;
+  token_use: string;
+  username: string;
+  name?: string | null;
+  picture?: string | null;
+  cognito_groups?: string[] | null;
+  identities?: string | null;
+  origin_jti?: string | null;
+  event_id?: string | null;
+}
+
 export interface UserResponse {
   user_id: string;
   cognito_user_id: string;

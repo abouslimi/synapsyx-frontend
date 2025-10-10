@@ -1,4 +1,5 @@
 // Authentication helper functions
+import { buildApiUrl } from './apiConfig';
 export const getAuthToken = (): string => {
   try {
     const oidcStorage = localStorage.getItem('oidc.user:https://cognito-idp.eu-central-1.amazonaws.com/eu-central-1_GxKWo2hS9:6c69v8akat6b5k0t54s6fm1a87');
