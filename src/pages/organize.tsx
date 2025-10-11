@@ -9,7 +9,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { buildApiUrl, API_ENDPOINTS } from "@/lib/apiConfig";
 import { 
@@ -254,6 +254,9 @@ export default function Organize() {
                         <DialogTitle>
                           {editingItem ? "Modifier la tâche" : "Nouvelle tâche"}
                         </DialogTitle>
+                        <DialogDescription>
+                          {editingItem ? "Modifiez les détails de votre tâche" : "Créez une nouvelle tâche pour votre planning"}
+                        </DialogDescription>
                       </DialogHeader>
                       <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

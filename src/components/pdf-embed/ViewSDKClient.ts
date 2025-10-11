@@ -10,18 +10,38 @@ written permission of Adobe.
 */
 
 import type { AdobeDCView, ViewerConfig, SaveApiResponse, PDFEvent } from './types';
-import { buildApiUrl, API_ENDPOINTS } from '../../lib/apiConfig';
+import { API_ENDPOINTS, buildApiUrl } from '../../lib/apiConfig';
 
 class ViewSDKClient {
   private readyPromise: Promise<void>;
   private adobeDCView?: AdobeDCView;
   private clientId?: string;
 
-  constructor() {
+  constructor(accessToken?: string) {
     this.readyPromise = new Promise(async (resolve) => {
       // Fetch client ID from server
       try {
-        const response = await fetch(buildApiUrl(API_ENDPOINTS.ADOBE_CONFIG));
+        if (window.location.hostname.includes('localhost')) {
+          throw new Error('load from localhost');
+        }
+        const url = buildApiUrl(API_ENDPOINTS.ADOBE_CONFIG);
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        
+        if (accessToken) {
+          headers['Authorization'] = `Bearer ${accessToken}`;
+        }
+
+        const response = await fetch(url, {
+          method: 'GET',
+          headers,
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         const config = await response.json();
         this.clientId = config.clientId;
       } catch (error) {

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { authenticatedApiRequest } from "@/lib/queryClient";
 import { API_ENDPOINTS, type CourseSectionStatisticsResponse } from "@/lib/apiConfig";
 import { useAuth as useOIDCAuth } from "react-oidc-context";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -79,6 +79,9 @@ export function CoursePreviewModal({
             <FileText className="h-5 w-5" />
             {courseSection.section_name || courseSection.course_name || 'Aperçu du cours'}
           </DialogTitle>
+          <DialogDescription>
+            Aperçu détaillé du cours avec statistiques et informations sur les sections
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">

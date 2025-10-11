@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAbsoluteUrl } from "@/lib/queryClient";
 import { API_ENDPOINTS } from "@/lib/apiConfig";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -182,6 +182,9 @@ export function QuizModal({ course, isOpen, onClose }: QuizModalProps) {
             <Play className="h-5 w-5" />
             Quiz - {course.sectionName || course.courseName}
           </DialogTitle>
+          <DialogDescription>
+            Testez vos connaissances avec ce quiz interactif sur le cours
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">

@@ -67,6 +67,8 @@ export interface PDFEmbedProps {
   onAnnotationManagerReady?: (manager: any) => void;
   /** Custom headers for PDF URL */
   headers?: Array<{ key: string; value: string }>;
+  /** Access token for authenticated requests */
+  accessToken?: string;
 }
 
 class PDFEmbed extends Component<PDFEmbedProps> {
@@ -75,7 +77,7 @@ class PDFEmbed extends Component<PDFEmbedProps> {
 
   constructor(props: PDFEmbedProps) {
     super(props);
-    this.viewSDKClient = new ViewSDKClient();
+    this.viewSDKClient = new ViewSDKClient(props.accessToken);
   }
 
   componentDidMount() {

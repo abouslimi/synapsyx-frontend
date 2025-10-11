@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth as useOIDCAuth } from 'react-oidc-context';
 import { getAbsoluteUrl } from '@/lib/queryClient';
 import { API_ENDPOINTS } from '@/lib/apiConfig';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -31,25 +32,26 @@ import {
 } from "lucide-react";
 import { PDFEmbed } from './pdf-embed';
 
-interface Course {
-  id: string;
+interface CourseSection {
+  course_id: string;
   section_id?: string;
-  title: string;
+  section_name: string;
   description?: string;
-  splitPageCount?: number;
+  split_page_count?: number;
   [key: string]: any;
 }
 
 interface PdfViewerProps {
-  course: Course;
+  courseSection: CourseSection;
   isOpen: boolean;
   onClose: () => void;
   isSummary?: boolean;
 }
 
-export function PdfViewer({ course, isOpen, onClose, isSummary = false }: PdfViewerProps) {
+export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = false }: PdfViewerProps) {
+  const auth = useOIDCAuth();
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(true);
   const [activeTab, setActiveTab] = useState('viewer');
   const [embedMode, setEmbedMode] = useState<'FULL_WINDOW' | 'IN_LINE' | 'SIZED_CONTAINER' | 'LIGHT_BOX'>('FULL_WINDOW');
   const [enableAnnotations, setEnableAnnotations] = useState(true);
@@ -60,7 +62,7 @@ export function PdfViewer({ course, isOpen, onClose, isSummary = false }: PdfVie
   const [showZoomControl, setShowZoomControl] = useState(true);
   const [showDownloadPDF, setShowDownloadPDF] = useState(true);
   const [showPrintPDF, setShowPrintPDF] = useState(true);
-  const [defaultViewMode, setDefaultViewMode] = useState<'FIT_PAGE' | 'FIT_WIDTH' | 'FIT_HEIGHT'>('FIT_PAGE');
+  const [defaultViewMode, setDefaultViewMode] = useState<'FIT_PAGE' | 'FIT_WIDTH' | 'FIT_HEIGHT'>('FIT_WIDTH');
   const [searchTerm, setSearchTerm] = useState('');
   const [annotations, setAnnotations] = useState<any[]>([]);
   // const [selectedAnnotation, setSelectedAnnotation] = useState<any>(null);
@@ -68,11 +70,11 @@ export function PdfViewer({ course, isOpen, onClose, isSummary = false }: PdfVie
 
   // Fetch presigned URL for PDF - use section endpoint if available, otherwise course endpoint
   const { data: pdfUrl, isLoading: isLoadingPdf, error: pdfUrlError } = useQuery({
-    queryKey: [course.section_id ? API_ENDPOINTS.COURSE_SECTION_PDF_URL(course.section_id) : API_ENDPOINTS.COURSE_PDF_URL(course.id)],
+    queryKey: [course.section_id ? API_ENDPOINTS.COURSE_SECTION_PDF_URL(course.section_id) : API_ENDPOINTS.COURSE_PDF_URL(course.course_id)],
     queryFn: async () => {
       const endpoint = course.section_id 
         ? API_ENDPOINTS.COURSE_SECTION_PDF_URL(course.section_id)
-        : API_ENDPOINTS.COURSE_PDF_URL(course.id);
+        : API_ENDPOINTS.COURSE_PDF_URL(course.course_id);
       const response = await fetch(getAbsoluteUrl(endpoint));
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -81,9 +83,13 @@ export function PdfViewer({ course, isOpen, onClose, isSummary = false }: PdfVie
       const data = await response.json();
       return data.presignedUrl;
     },
-    enabled: isOpen && (!!course.id || !!course.section_id),
+    enabled: isOpen && (!!course.course_id || !!course.section_id),
     retry: false, // Don't retry on 404 errors
   });
+
+  console.log('## course', course);
+  console.log('## annotations', annotations);
+
 
   const handlePDFLoaded = () => {
     console.log('PDF loaded successfully');
@@ -135,7 +141,7 @@ export function PdfViewer({ course, isOpen, onClose, isSummary = false }: PdfVie
     if (pdfUrl) {
       const link = document.createElement('a');
       link.href = pdfUrl;
-      link.download = `${course.title}.pdf`;
+      link.download = `${course.section_name}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -192,15 +198,15 @@ export function PdfViewer({ course, isOpen, onClose, isSummary = false }: PdfVie
               <FileText className="h-6 w-6 text-blue-600" />
               <div>
                 <DialogTitle className="text-xl font-semibold">
-                  {isSummary ? `${course.title} - Summary` : course.title}
+                  {isSummary ? `Résumé - ${course.section_name}` : course.section_name}
                 </DialogTitle>
-                <p className="text-sm text-muted-foreground">
-                  {isSummary ? 'Course Summary' : 'Course Material'} • Adobe PDF Embed API
-                </p>
+                <DialogDescription>
+                  {isSummary ? 'Résumé du cours' : 'Cours'}
+                </DialogDescription>
               </div>
-              {course.splitPageCount && (
+              {course.split_page_count && (
                 <Badge variant="secondary">
-                  {course.splitPageCount} pages
+                  {course.split_page_count} pages
                 </Badge>
               )}
               {annotations.length > 0 && (
@@ -215,6 +221,7 @@ export function PdfViewer({ course, isOpen, onClose, isSummary = false }: PdfVie
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
+                  id="search-pdf"
                   placeholder="Search PDF..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -315,9 +322,9 @@ export function PdfViewer({ course, isOpen, onClose, isSummary = false }: PdfVie
               </Button>
 
               {/* Close Button */}
-              <Button variant="ghost" size="sm" onClick={onClose}>
+              {/* <Button variant="ghost" size="sm" onClick={onClose}>
                 <X className="h-4 w-4" />
-              </Button>
+              </Button> */}
             </div>
           </div>
         </DialogHeader>
@@ -392,8 +399,8 @@ export function PdfViewer({ course, isOpen, onClose, isSummary = false }: PdfVie
                   ) : (
                     <PDFEmbed
                       pdfUrl={pdfUrl}
-                      fileName={course.title}
-                      fileId={course.id}
+                      fileName={course.section_name}
+                      fileId={course.section_id}
                       embedMode={embedMode}
                       enableAnnotations={enableAnnotations}
                       showAnnotationTools={showTools}
@@ -404,8 +411,9 @@ export function PdfViewer({ course, isOpen, onClose, isSummary = false }: PdfVie
                       showZoomControl={showZoomControl}
                       defaultViewMode={defaultViewMode}
                       className={embedMode === 'IN_LINE' ? 'in-line-container' : undefined}
-                      width={embedMode === 'SIZED_CONTAINER' ? 800 : undefined}
-                      height={embedMode === 'SIZED_CONTAINER' ? 600 : undefined}
+                      width={embedMode === 'SIZED_CONTAINER' ? '100%' : undefined}
+                      height={embedMode === 'SIZED_CONTAINER' ? 600 : 600}
+                      accessToken={auth.user?.access_token}
                       onPDFLoaded={handlePDFLoaded}
                       onPDFError={handlePDFError}
                       onAnnotationEvent={handleAnnotationEvent}

@@ -542,7 +542,7 @@ export default function Learn() {
 
         {showPdfViewer && selectedCourse && (
           <PdfViewer
-            course={selectedCourse}
+            courseSection={selectedCourse}
             isOpen={showPdfViewer}
             onClose={() => setShowPdfViewer(false)}
           />
@@ -558,7 +558,7 @@ export default function Learn() {
 
         {showSummaryViewer && selectedCourse && (
           <PdfViewer
-            course={selectedCourse}
+            courseSection={selectedCourse}
             isOpen={showSummaryViewer}
             onClose={() => setShowSummaryViewer(false)}
             isSummary={true}
