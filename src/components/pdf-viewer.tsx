@@ -1,34 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth as useOIDCAuth } from 'react-oidc-context';
 import { getAbsoluteUrl } from '@/lib/queryClient';
 import { API_ENDPOINTS } from '@/lib/apiConfig';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { 
-  Download, 
-  Printer, 
-  Sun, 
-  Moon,
+import {
   Maximize2,
   Minimize2,
   FileText,
   Highlighter,
   Eye,
   X,
-  Settings,
-  MessageSquare,
-  Search,
-  ChevronLeft,
-  // ChevronRight,
-  Layers,
-  StickyNote,
-  Square
 } from "lucide-react";
 import { PDFEmbed } from './pdf-embed';
 
@@ -50,29 +37,37 @@ interface PdfViewerProps {
 
 export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = false }: PdfViewerProps) {
   const auth = useOIDCAuth();
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [activeTab, setActiveTab] = useState('viewer');
   const [embedMode, setEmbedMode] = useState<'FULL_WINDOW' | 'IN_LINE' | 'SIZED_CONTAINER' | 'LIGHT_BOX'>('FULL_WINDOW');
-  const [enableAnnotations, setEnableAnnotations] = useState(true);
+
   const [showTools, setShowTools] = useState(true);
-  const [showComments, setShowComments] = useState(true);
-  const [showLeftPanel, setShowLeftPanel] = useState(true);
-  const [showPageControls, setShowPageControls] = useState(true);
   const [showZoomControl, setShowZoomControl] = useState(true);
   const [showDownloadPDF, setShowDownloadPDF] = useState(true);
   const [showPrintPDF, setShowPrintPDF] = useState(true);
   const [defaultViewMode, setDefaultViewMode] = useState<'FIT_PAGE' | 'FIT_WIDTH' | 'FIT_HEIGHT'>('FIT_WIDTH');
-  const [searchTerm, setSearchTerm] = useState('');
   const [annotations, setAnnotations] = useState<any[]>([]);
-  // const [selectedAnnotation, setSelectedAnnotation] = useState<any>(null);
-  const [showAnnotationPanel, setShowAnnotationPanel] = useState(false);
+
+  // Load isFullscreen state from localStorage when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      const savedFullscreenState = localStorage.getItem('pdf-viewer-fullscreen');
+      if (savedFullscreenState !== null) {
+        setIsFullscreen(JSON.parse(savedFullscreenState));
+      }
+    }
+  }, [isOpen]);
+
+  // Save isFullscreen state to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('pdf-viewer-fullscreen', JSON.stringify(isFullscreen));
+  }, [isFullscreen]);
 
   // Fetch presigned URL for PDF - use section endpoint if available, otherwise course endpoint
   const { data: pdfUrl, isLoading: isLoadingPdf, error: pdfUrlError } = useQuery({
     queryKey: [course.section_id ? API_ENDPOINTS.COURSE_SECTION_PDF_URL(course.section_id) : API_ENDPOINTS.COURSE_PDF_URL(course.course_id)],
     queryFn: async () => {
-      const endpoint = course.section_id 
+      const endpoint = course.section_id
         ? API_ENDPOINTS.COURSE_SECTION_PDF_URL(course.section_id)
         : API_ENDPOINTS.COURSE_PDF_URL(course.course_id);
       const response = await fetch(getAbsoluteUrl(endpoint));
@@ -101,7 +96,7 @@ export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = 
 
   const handleAnnotationEvent = (event: any) => {
     console.log('Annotation event:', event);
-    
+
     switch (event.type) {
       case 'ANNOTATION_ADDED':
         setAnnotations(prev => [...prev, event.data]);
@@ -110,7 +105,7 @@ export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = 
         setAnnotations(prev => prev.filter(ann => ann.id !== event.data.id));
         break;
       case 'ANNOTATION_UPDATED':
-        setAnnotations(prev => prev.map(ann => 
+        setAnnotations(prev => prev.map(ann =>
           ann.id === event.data.id ? event.data : ann
         ));
         break;
@@ -127,73 +122,21 @@ export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = 
 
   const handleAnnotationManagerReady = () => {
     // Annotation manager ready
+    console.log('Annotation manager ready');
   };
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
   };
 
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-  };
-
-  const downloadPDF = () => {
-    if (pdfUrl) {
-      const link = document.createElement('a');
-      link.href = pdfUrl;
-      link.download = `${course.section_name}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-  };
-
-  const printPDF = () => {
-    if (pdfUrl) {
-      window.open(pdfUrl, '_blank');
-    }
-  };
-
-  // const addAnnotation = () => {
-  //   if (annotationManager) {
-  //     // Add a sample annotation
-  //     const sampleAnnotation = {
-  //       id: `annotation-${Date.now()}`,
-  //       type: 'highlight',
-  //       pageNumber: 1,
-  //       bodyValue: 'Sample annotation',
-  //       position: { x: 100, y: 100 }
-  //     };
-  //     
-  //     annotationManager.addAnnotations([sampleAnnotation])
-  //       .then(() => {
-  //         console.log('Annotation added');
-  //       })
-  //       .catch((error: any) => {
-  //         console.error('Failed to add annotation:', error);
-  //       });
-  //   }
-  // };
-
-  // const deleteAnnotation = (annotationId: string) => {
-  //   if (annotationManager) {
-  //     annotationManager.deleteAnnotations({ annotationIds: [annotationId] })
-  //       .then(() => {
-  //         console.log('Annotation deleted');
-  //       })
-  //       .catch((error: any) => {
-  //         console.error('Failed to delete annotation:', error);
-  //       });
-  //   }
-  // };
-
   if (!isOpen) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={`${isFullscreen ? 'max-w-full h-full' : 'max-w-7xl h-[90vh]'} p-0`}>
-        <DialogHeader className="p-6 pb-0">
-          <div className="flex items-center justify-between">
+
+        <div className="flex-1 overflow-hidden">
+          <div className=" p-6 pb-0 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <FileText className="h-6 w-6 text-blue-600" />
               <div>
@@ -215,102 +158,8 @@ export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = 
                 </Badge>
               )}
             </div>
-            
+
             <div className="flex items-center gap-2">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="search-pdf"
-                  placeholder="Search PDF..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8 w-48"
-                />
-              </div>
-
-              {/* View Controls */}
-              <div className="flex items-center gap-1 border rounded-lg p-1">
-                <Button
-                  variant={embedMode === 'FULL_WINDOW' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setEmbedMode('FULL_WINDOW')}
-                  title="Full Window"
-                >
-                  <Maximize2 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={embedMode === 'IN_LINE' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setEmbedMode('IN_LINE')}
-                  title="In Line"
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={embedMode === 'SIZED_CONTAINER' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setEmbedMode('SIZED_CONTAINER')}
-                  title="Sized Container"
-                >
-                  <Square className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={embedMode === 'LIGHT_BOX' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setEmbedMode('LIGHT_BOX')}
-                  title="Light Box"
-                >
-                  <Layers className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {/* Feature Toggles */}
-              <div className="flex items-center gap-1">
-                <Button
-                  variant={enableAnnotations ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setEnableAnnotations(!enableAnnotations)}
-                  title="Toggle Annotations"
-                >
-                  <Highlighter className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={showTools ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setShowTools(!showTools)}
-                  title="Toggle Tools"
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={showComments ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setShowComments(!showComments)}
-                  title="Toggle Comments"
-                >
-                  <MessageSquare className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={showAnnotationPanel ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setShowAnnotationPanel(!showAnnotationPanel)}
-                  title="Toggle Annotation Panel"
-                >
-                  <StickyNote className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {/* Theme Toggle */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={toggleDarkMode}
-                title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-              >
-                {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </Button>
-
               {/* Fullscreen Toggle */}
               <Button
                 variant="ghost"
@@ -322,14 +171,11 @@ export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = 
               </Button>
 
               {/* Close Button */}
-              {/* <Button variant="ghost" size="sm" onClick={onClose}>
+              <Button variant="ghost" size="sm" onClick={onClose}>
                 <X className="h-4 w-4" />
-              </Button> */}
+              </Button>
             </div>
           </div>
-        </DialogHeader>
-
-        <div className="flex-1 overflow-hidden">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
             <TabsList className="mx-6 mb-4">
               <TabsTrigger value="viewer" className="flex items-center gap-2">
@@ -340,14 +186,10 @@ export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = 
                 <Highlighter className="h-4 w-4" />
                 Annotations ({annotations.length})
               </TabsTrigger>
-              <TabsTrigger value="tools" className="flex items-center gap-2">
-                <Settings className="h-4 w-4" />
-                Tools
-              </TabsTrigger>
-              <TabsTrigger value="settings" className="flex items-center gap-2">
+              {/* <TabsTrigger value="settings" className="flex items-center gap-2">
                 <Settings className="h-4 w-4" />
                 Settings
-              </TabsTrigger>
+              </TabsTrigger> */}
             </TabsList>
 
             <TabsContent value="viewer" className="flex-1 overflow-hidden mx-6 mb-6">
@@ -378,9 +220,9 @@ export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = 
                         </ul>
                       </div>
                     )}
-                    <Button 
-                      onClick={() => window.location.reload()} 
-                      variant="outline" 
+                    <Button
+                      onClick={() => window.location.reload()}
+                      variant="outline"
                       className="mt-4"
                     >
                       Refresh Page
@@ -388,7 +230,7 @@ export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = 
                   </div>
                 </div>
               ) : pdfUrl ? (
-                <div className={`h-full ${isDarkMode ? 'dark' : ''}`}>
+                <div className={`h-full`}>
                   {embedMode === 'LIGHT_BOX' ? (
                     <div className="h-full flex items-center justify-center">
                       <Button onClick={() => setEmbedMode('FULL_WINDOW')} size="lg">
@@ -402,17 +244,12 @@ export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = 
                       fileName={course.section_name}
                       fileId={course.section_id}
                       embedMode={embedMode}
-                      enableAnnotations={enableAnnotations}
                       showAnnotationTools={showTools}
                       showDownloadPDF={showDownloadPDF}
                       showPrintPDF={showPrintPDF}
-                      showLeftHandPanel={showLeftPanel}
-                      showPageControls={showPageControls}
                       showZoomControl={showZoomControl}
                       defaultViewMode={defaultViewMode}
                       className={embedMode === 'IN_LINE' ? 'in-line-container' : undefined}
-                      width={embedMode === 'SIZED_CONTAINER' ? '100%' : undefined}
-                      height={embedMode === 'SIZED_CONTAINER' ? 600 : 600}
                       accessToken={auth.user?.access_token}
                       onPDFLoaded={handlePDFLoaded}
                       onPDFError={handlePDFError}
@@ -424,105 +261,17 @@ export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = 
               ) : null}
             </TabsContent>
 
-            <TabsContent value="tools" className="flex-1 overflow-hidden mx-6 mb-6">
-              <div className="h-full border rounded-lg p-4">
-                <h3 className="text-lg font-semibold mb-4">PDF Tools</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <Button onClick={downloadPDF} className="flex items-center gap-2">
-                    <Download className="h-4 w-4" />
-                    Download PDF
-                  </Button>
-                  <Button onClick={printPDF} className="flex items-center gap-2">
-                    <Printer className="h-4 w-4" />
-                    Print PDF
-                  </Button>
-                  <Button 
-                    onClick={() => setEnableAnnotations(!enableAnnotations)}
-                    variant={enableAnnotations ? 'default' : 'outline'}
-                    className="flex items-center gap-2"
-                  >
-                    <Highlighter className="h-4 w-4" />
-                    {enableAnnotations ? 'Disable' : 'Enable'} Annotations
-                  </Button>
-                  <Button 
-                    onClick={() => setShowTools(!showTools)}
-                    variant={showTools ? 'default' : 'outline'}
-                    className="flex items-center gap-2"
-                  >
-                    <Settings className="h-4 w-4" />
-                    {showTools ? 'Hide' : 'Show'} Tools
-                  </Button>
-                  <Button 
-                    onClick={() => setShowLeftPanel(!showLeftPanel)}
-                    variant={showLeftPanel ? 'default' : 'outline'}
-                    className="flex items-center gap-2"
-                  >
-                    <Layers className="h-4 w-4" />
-                    {showLeftPanel ? 'Hide' : 'Show'} Left Panel
-                  </Button>
-                  <Button 
-                    onClick={() => setShowPageControls(!showPageControls)}
-                    variant={showPageControls ? 'default' : 'outline'}
-                    className="flex items-center gap-2"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    {showPageControls ? 'Hide' : 'Show'} Page Controls
-                  </Button>
-                </div>
-              </div>
-            </TabsContent>
-
             <TabsContent value="settings" className="flex-1 overflow-hidden mx-6 mb-6">
               <div className="h-full border rounded-lg p-4">
                 <h3 className="text-lg font-semibold mb-4">PDF Settings</h3>
                 <div className="space-y-6">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="dark-mode">Dark Mode</Label>
-                      <Switch
-                        id="dark-mode"
-                        checked={isDarkMode}
-                        onCheckedChange={setIsDarkMode}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="annotations">Enable Annotations</Label>
-                      <Switch
-                        id="annotations"
-                        checked={enableAnnotations}
-                        onCheckedChange={setEnableAnnotations}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
                       <Label htmlFor="tools">Show Tools</Label>
                       <Switch
                         id="tools"
                         checked={showTools}
                         onCheckedChange={setShowTools}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="comments">Show Comments</Label>
-                      <Switch
-                        id="comments"
-                        checked={showComments}
-                        onCheckedChange={setShowComments}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="left-panel">Show Left Panel</Label>
-                      <Switch
-                        id="left-panel"
-                        checked={showLeftPanel}
-                        onCheckedChange={setShowLeftPanel}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="page-controls">Show Page Controls</Label>
-                      <Switch
-                        id="page-controls"
-                        checked={showPageControls}
-                        onCheckedChange={setShowPageControls}
                       />
                     </div>
                     <div className="flex items-center justify-between">
@@ -550,7 +299,7 @@ export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = 
                       />
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label>Default View Mode</Label>
                     <div className="flex gap-2">

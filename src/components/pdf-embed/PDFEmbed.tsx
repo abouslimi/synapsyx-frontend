@@ -98,8 +98,8 @@ class PDFEmbed extends Component<PDFEmbedProps> {
       fileName = "Bodea Brochure.pdf",
       fileId = "6d07d124-ac85-43b3-a867-36930f502ac6",
       embedMode = "FULL_WINDOW",
-      enableAnnotations = false,
-      showAnnotationTools = false,
+      enableAnnotations = true,
+      showAnnotationTools = true,
       showDownloadPDF = true,
       showPrintPDF = true,
       showLeftHandPanel = true,
@@ -108,9 +108,9 @@ class PDFEmbed extends Component<PDFEmbedProps> {
       defaultViewMode = "FIT_PAGE",
       enableFormFilling = true,
       showCommentsPanel = true,
-      downloadWithAnnotations = false,
-      printWithAnnotations = false,
-      includePDFAnnotations = false,
+      downloadWithAnnotations = true,
+      printWithAnnotations = true,
+      includePDFAnnotations = true,
       headers
     } = this.props;
 
@@ -196,8 +196,8 @@ class PDFEmbed extends Component<PDFEmbedProps> {
       className = "full-window-div",
       id = "pdf-div",
       embedMode = "FULL_WINDOW",
-      width = 600,
-      height = 476
+      width = `100%`,
+      height = `100%`
     } = this.props;
 
     // Determine container class based on embed mode
@@ -211,8 +211,8 @@ class PDFEmbed extends Component<PDFEmbedProps> {
     }
 
     const containerStyle = embedMode === "SIZED_CONTAINER" ? {
-      width: `${width}px`,
-      height: `${height}px`,
+      width: width,
+      height: height,
     } : {};
 
     return (

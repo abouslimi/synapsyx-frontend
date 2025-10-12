@@ -349,7 +349,7 @@ export default function Home() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-foreground">Examen blanc</p>
-                  <p className="text-xs text-muted-foreground">Simulation ECN</p>
+                  <p className="text-xs text-muted-foreground">Simulation</p>
                 </div>
               </div>
             </CardContent>

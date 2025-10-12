@@ -293,7 +293,7 @@ export default function AiTutor() {
                             <li>Physiopathologie et mécanismes</li>
                             <li>Diagnostic et examens</li>
                             <li>Traitements et thérapeutiques</li>
-                            <li>Cas cliniques et ECN</li>
+                            <li>Cas cliniques</li>
                           </ul>
                         </div>
                       </div>

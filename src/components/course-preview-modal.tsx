@@ -8,14 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  FileText, 
-  BookOpen, 
-  Clock, 
+import {
+  FileText,
+  BookOpen,
+  Clock,
   BarChart3,
-  Play, 
-  Download, 
-  Share2, 
+  X,
+  Play,
+  Download,
+  Share2,
   Save,
   Eye,
   CheckCircle,
@@ -31,12 +32,12 @@ interface CoursePreviewModalProps {
   onStartQuiz: () => void;
 }
 
-export function CoursePreviewModal({ 
-  course: courseSection, 
-  isOpen, 
-  onClose, 
-  onViewPdf, 
-  onStartQuiz 
+export function CoursePreviewModal({
+  course: courseSection,
+  isOpen,
+  onClose,
+  onViewPdf,
+  onStartQuiz
 }: CoursePreviewModalProps) {
   const [activeTab, setActiveTab] = useState("details");
   const oidcAuth = useOIDCAuth();
@@ -75,13 +76,25 @@ export function CoursePreviewModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            {courseSection.section_name || courseSection.course_name || 'Aperçu du cours'}
-          </DialogTitle>
-          <DialogDescription>
-            Aperçu détaillé du cours avec statistiques et informations sur les sections
-          </DialogDescription>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                {courseSection.section_name || courseSection.course_name || 'Aperçu du cours'}
+              </DialogTitle>
+              <DialogDescription>
+                Aperçu détaillé du cours avec statistiques et informations sur les sections
+              </DialogDescription>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Close Button */}
+              <Button variant="ghost" size="sm" onClick={onClose}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </DialogHeader>
 
         <div className="space-y-6">
