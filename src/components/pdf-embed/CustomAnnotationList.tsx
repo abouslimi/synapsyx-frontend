@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,9 +13,58 @@ import {
   Calendar,
   User,
   Eye,
-  EyeOff
+  EyeOff,
+  Reply
 } from 'lucide-react';
-import { pdfAnnotationService, type PdfAnnotationResponse } from '@/lib/pdfAnnotationService';
+import { type PdfAnnotationResponse } from '@/lib/pdfAnnotationService';
+
+// Utility function to group annotations with their replies
+const groupAnnotationsWithReplies = (annotations: PdfAnnotationResponse[]) => {
+  const annotationMap = new Map<string, PdfAnnotationResponse>();
+  const replyMap = new Map<string, PdfAnnotationResponse[]>();
+  const topLevelAnnotations: PdfAnnotationResponse[] = [];
+
+  // First pass: create annotation map and identify all annotation IDs
+  annotations.forEach(annotation => {
+    annotationMap.set(annotation.annotation_id, annotation);
+  });
+
+  // Second pass: identify replies and top-level annotations
+  annotations.forEach(annotation => {
+    const targetSource = annotation.annotation.target?.source;
+    
+    // Check if this annotation is a reply to another annotation
+    // A reply has target.source pointing to another annotation's ID
+    const isReply = targetSource && 
+                   annotation.annotation.motivation === 'replying' &&
+                   annotationMap.has(targetSource);
+    
+    if (isReply) {
+      // This is a reply to another annotation
+      if (!replyMap.has(targetSource)) {
+        replyMap.set(targetSource, []);
+      }
+      replyMap.get(targetSource)!.push(annotation);
+    } else {
+      // This is a top-level annotation
+      topLevelAnnotations.push(annotation);
+    }
+  });
+
+  // Sort top-level annotations by creation date
+  topLevelAnnotations.sort((a, b) => 
+    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+
+  // Sort replies by creation date
+  replyMap.forEach(replies => {
+    replies.sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+  });
+
+  return { topLevelAnnotations, replyMap };
+};
 
 interface AnnotationItemProps {
   annotation: PdfAnnotationResponse;
@@ -23,6 +72,9 @@ interface AnnotationItemProps {
   onDelete: (annotationId: string) => void;
   onSelect?: (annotationId: string) => void;
   isSelected?: boolean;
+  replies?: PdfAnnotationResponse[];
+  isReply?: boolean;
+  selectedAnnotationId?: string;
 }
 
 const AnnotationItem: React.FC<AnnotationItemProps> = ({
@@ -30,7 +82,10 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
   onEdit,
   onDelete,
   onSelect,
-  isSelected = false
+  isSelected = false,
+  replies = [],
+  isReply = false,
+  selectedAnnotationId
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(annotation.annotation.bodyValue || '');
@@ -59,7 +114,7 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -68,7 +123,10 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
     });
   };
 
-  const getAnnotationTypeIcon = (subtype?: string) => {
+  const getAnnotationTypeIcon = (subtype?: string, motivation?: string) => {
+    if (motivation === 'replying') {
+      return <Reply className="h-4 w-4 text-green-500" />;
+    }
     switch (subtype) {
       case 'highlight':
         return <FileText className="h-4 w-4 text-yellow-500" />;
@@ -79,7 +137,16 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
     }
   };
 
-  const getAnnotationTypeColor = (subtype?: string) => {
+  const getAnnotationTypeColor = (subtype?: string, strokeColor?: string, motivation?: string) => {
+    // If strokeColor is provided, use it as background
+    if (strokeColor) {
+      return `border-[${strokeColor}]`;
+    }
+    
+    if (motivation === 'replying') {
+      return 'bg-green-50 border-green-200';
+    }
+    
     switch (subtype) {
       case 'highlight':
         return 'bg-yellow-50 border-yellow-200';
@@ -90,22 +157,27 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
     }
   };
 
+  const strokeColor = annotation.annotation.target?.selector?.strokeColor;
+  const cardStyle = strokeColor ? { backgroundColor: strokeColor + '20' } : {};
+  
   return (
-    <Card 
-      className={`mb-3 cursor-pointer transition-all hover:shadow-md ${
-        isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : ''
-      } ${getAnnotationTypeColor(annotation.annotation.target?.selector?.subtype)}`}
-      onClick={() => onSelect?.(annotation.annotation_id)}
-    >
+    <div>
+      <Card 
+        className={`mb-3 cursor-pointer transition-all hover:shadow-md ${
+          isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+        } ${getAnnotationTypeColor(annotation.annotation.target?.selector?.subtype, strokeColor, annotation.annotation.motivation)}`}
+        style={cardStyle}
+        onClick={() => onSelect?.(annotation.annotation_id)}
+      >
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {getAnnotationTypeIcon(annotation.annotation.target?.selector?.subtype)}
+            {getAnnotationTypeIcon(annotation.annotation.target?.selector?.subtype, annotation.annotation.motivation)}
             <CardTitle className="text-sm font-medium">
-              Page {(annotation.annotation.target?.selector?.node?.index || 0) + 1}
+              {isReply ? 'Reply' : `Page ${(annotation.annotation.target?.selector?.node?.index || 0) + 1}`}
             </CardTitle>
             <Badge variant="outline" className="text-xs">
-              {annotation.annotation.target?.selector?.subtype || 'annotation'}
+              {annotation.annotation.motivation === 'replying' ? 'reply' : annotation.annotation.target?.selector?.subtype || 'annotation'}
             </Badge>
           </div>
           <div className="flex items-center gap-1">
@@ -159,6 +231,11 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
             <p className="text-sm text-gray-700 leading-relaxed">
               {annotation.annotation.bodyValue || 'No text content'}
             </p>
+            {annotation.annotation.motivation && (
+              <div className="text-xs text-gray-600">
+                <strong>Motivation:</strong> {annotation.annotation.motivation}
+              </div>
+            )}
             <div className="flex items-center gap-4 text-xs text-gray-500">
               <div className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
@@ -175,6 +252,25 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
         )}
       </CardContent>
     </Card>
+    
+    {/* Render replies */}
+    {replies.length > 0 && (
+      <div className="mt-2 ml-4 space-y-2 border-l-2 border-gray-200 pl-4">
+        {replies.map(reply => (
+          <AnnotationItem
+            key={reply.annotation_id}
+            annotation={reply}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onSelect={onSelect}
+            isSelected={selectedAnnotationId === reply.annotation_id}
+            isReply={true}
+            selectedAnnotationId={selectedAnnotationId}
+          />
+        ))}
+      </div>
+    )}
+  </div>
   );
 };
 
@@ -207,13 +303,17 @@ const CustomAnnotationList: React.FC<CustomAnnotationListProps> = ({
   // Filter annotations based on search term
   const filteredAnnotations = (annotations || []).filter(annotation =>
     annotation.annotation.bodyValue?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    annotation.annotation.target?.selector?.subtype?.toLowerCase().includes(searchTerm.toLowerCase())
+    annotation.annotation.target?.selector?.subtype?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    annotation.annotation.motivation?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   console.log('Filtered annotations:', filteredAnnotations);
 
-  // Group annotations by page
-  const annotationsByPage = filteredAnnotations.reduce((acc, annotation) => {
+  // Group annotations with their replies
+  const { topLevelAnnotations, replyMap } = groupAnnotationsWithReplies(filteredAnnotations);
+
+  // Group top-level annotations by page
+  const annotationsByPage = topLevelAnnotations.reduce((acc, annotation) => {
     const page = parseInt(annotation.annotation.pageNumber?.toString() || '1', 10);
     const validPage = isNaN(page) ? 1 : page;
     console.log('Processing annotation:', annotation.annotation.id, 'pageNumber:', annotation.annotation.pageNumber, 'parsed:', page, 'validPage:', validPage);
@@ -303,6 +403,8 @@ const CustomAnnotationList: React.FC<CustomAnnotationListProps> = ({
                       onDelete={onDeleteAnnotation}
                       onSelect={onAnnotationSelect}
                       isSelected={selectedAnnotationId === annotation.annotation_id}
+                      replies={replyMap.get(annotation.annotation_id) || []}
+                      selectedAnnotationId={selectedAnnotationId}
                     />
                   ))}
                 </div>
