@@ -53,6 +53,7 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
   const [defaultViewMode, setDefaultViewMode] = useState<'FIT_PAGE' | 'FIT_WIDTH' | 'FIT_HEIGHT'>('FIT_WIDTH');
   const [annotations, setAnnotations] = useState<PdfAnnotationResponse[]>([]);
   const [showAnnotations, setShowAnnotations] = useState(true);
+  const [loadedAnnotationIds, setLoadedAnnotationIds] = useState<Set<string>>(new Set());
   const annotationManagerRef = useRef<any>(null);
 
   // Load isFullscreen state from localStorage when dialog opens
@@ -128,6 +129,8 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
     },
     onSuccess: (newAnnotation) => {
       setAnnotations(prev => [...prev, newAnnotation]);
+      // Add the new annotation ID to loaded set
+      setLoadedAnnotationIds(prev => new Set(prev).add(newAnnotation.annotation.id));
       queryClient.invalidateQueries({ queryKey: ['pdf-annotations'] });
     },
     onError: (error) => {
@@ -170,6 +173,15 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
     },
     onSuccess: (_, annotationId) => {
       setAnnotations(prev => prev.filter(ann => ann.annotation_id !== annotationId));
+      // Remove the deleted annotation ID from loaded set
+      setLoadedAnnotationIds(prev => {
+        const newSet = new Set(prev);
+        const annotationToRemove = annotations.find(ann => ann.annotation_id === annotationId);
+        if (annotationToRemove) {
+          newSet.delete(annotationToRemove.annotation.id);
+        }
+        return newSet;
+      });
       queryClient.invalidateQueries({ queryKey: ['pdf-annotations'] });
     },
     onError: (error) => {
@@ -181,25 +193,53 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
   useEffect(() => {
     if (annotationsData?.annotations) {
       setAnnotations(annotationsData.annotations);
+      // console.log('###### annotationsData', annotationsData);
+      // Reset loaded annotation IDs when annotations change
+      // setLoadedAnnotationIds(new Set());
     }
   }, [annotationsData]);
+
+  // Helper function to safely load annotations
+  const loadAnnotationsSafely = async (manager: any, annotationsToLoad: PdfAnnotationResponse[]) => {
+    if (!manager || annotationsToLoad.length === 0) return;
+    // console.log('## annotationsToLoad', annotationsToLoad);
+    // console.log('## loadedAnnotationIds', loadedAnnotationIds);
+
+    // Filter out annotations that are already loaded
+    const newAnnotations = annotationsToLoad.filter(ann => !loadedAnnotationIds.has(ann.annotation.id));
+    // console.log('## newAnnotations', newAnnotations);
+    
+    if (newAnnotations.length === 0) {
+      console.log('All annotations already loaded, skipping');
+      return;
+    }
+
+    try {
+      const adobeAnnotations = newAnnotations.map(ann => 
+        pdfAnnotationService.convertApiAnnotationToAdobe(ann)
+      );
+      
+      await manager.addAnnotations(adobeAnnotations);
+      
+      // Update the loaded annotation IDs
+      setLoadedAnnotationIds(prev => {
+        const newSet = new Set(prev);
+        newAnnotations.forEach(ann => newSet.add(ann.annotation.id));
+        return newSet;
+      });
+      
+      console.log(`Loaded ${newAnnotations.length} new annotations into PDF viewer`);
+    } catch (error: any) {
+      console.error('Failed to load annotations into PDF viewer:', error);
+    }
+  };
 
   // Load annotations into PDF viewer when annotation manager is ready
   useEffect(() => {
     if (annotationManagerRef.current && annotations.length > 0 && showAnnotations) {
-      const adobeAnnotations = annotations.map(ann => 
-        pdfAnnotationService.convertApiAnnotationToAdobe(ann)
-      );
-      
-      annotationManagerRef.current.addAnnotations(adobeAnnotations)
-        .then(() => {
-          console.log('Annotations loaded into PDF viewer');
-        })
-        .catch((error: any) => {
-          console.error('Failed to load annotations into PDF viewer:', error);
-        });
+      loadAnnotationsSafely(annotationManagerRef.current, annotations);
     }
-  }, [annotationManagerRef.current, annotations, showAnnotations]);
+  }, [annotationManagerRef.current, annotations, showAnnotations, loadedAnnotationIds]);
 
   console.log('## course', courseSection);
   console.log('## annotations', annotations);
@@ -217,6 +257,16 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
 
     switch (event.type) {
       case 'ANNOTATION_ADDED':
+        // Check if annotation already exists before creating
+        const existingAnnotation = annotations.find(ann => 
+          ann.annotation.id === event.data.id
+        );
+        
+        if (existingAnnotation) {
+          console.log('Annotation already exists, skipping creation:', event.data.id);
+          return;
+        }
+        
         // Convert Adobe annotation to API format and create via API
         const apiAnnotation = pdfAnnotationService.convertAdobeAnnotationToApi(
           event.data,
@@ -262,42 +312,21 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
     
     // Load existing annotations if any
     if (annotations.length > 0 && showAnnotations) {
-      const adobeAnnotations = annotations.map(ann => 
-        pdfAnnotationService.convertApiAnnotationToAdobe(ann)
-      );
-      
-      manager.addAnnotations(adobeAnnotations)
-        .then(() => {
-          console.log('Existing annotations loaded into PDF viewer');
-        })
-        .catch((error: any) => {
-          console.error('Failed to load existing annotations:', error);
-        });
+      loadAnnotationsSafely(manager, annotations);
     }
   };
 
   const toggleAnnotations = () => {
-    setShowAnnotations(!showAnnotations);
+    const newShowState = !showAnnotations;
+    setShowAnnotations(newShowState);
+    
     if (annotationManagerRef.current) {
-      if (!showAnnotations) {
-        // Show annotations
-        const adobeAnnotations = annotations.map(ann => 
-          pdfAnnotationService.convertApiAnnotationToAdobe(ann)
-        );
-        annotationManagerRef.current.addAnnotations(adobeAnnotations)
-          .then(() => {
-            console.log('Annotations shown');
-          })
-          .catch((error: any) => {
-            console.error('Failed to show annotations:', error);
-          });
-      } else {
-        // Hide annotations by clearing them
-        annotationManagerRef.current.getAnnotations()
+      annotationManagerRef.current.getAnnotations()
           .then((currentAnnotations: any[]) => {
             if (currentAnnotations.length > 0) {
               const filter = { annotationIds: currentAnnotations.map(ann => ann.id) };
-              return annotationManagerRef.current.deleteAnnotations(filter);
+              return newShowState? annotationManagerRef.current.importAnnotations(filter) // setLoadedAnnotationIds
+              : annotationManagerRef.current.clearAnnotations();
             }
           })
           .then(() => {
@@ -306,7 +335,6 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
           .catch((error: any) => {
             console.error('Failed to hide annotations:', error);
           });
-      }
     }
   };
 
@@ -494,17 +522,8 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
                     onPDFLoaded={() => console.log('Annotations PDF loaded')}
                     onAnnotationManagerReady={(manager) => {
                       console.log('Annotations manager ready');
-                      // Load annotations into the manager
-                      const adobeAnnotations = annotations.map(ann => 
-                        pdfAnnotationService.convertApiAnnotationToAdobe(ann)
-                      );
-                      manager.addAnnotations(adobeAnnotations)
-                        .then(() => {
-                          console.log('Annotations loaded in management view');
-                        })
-                        .catch((error: any) => {
-                          console.error('Failed to load annotations in management view:', error);
-                        });
+                      // Load annotations into the manager using the safe loading function
+                      loadAnnotationsSafely(manager, annotations);
                     }}
                   />
                 )}

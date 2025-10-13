@@ -79,7 +79,7 @@ class PDFEmbed extends Component<PDFEmbedProps> {
 
   constructor(props: PDFEmbedProps) {
     super(props);
-    this.viewSDKClient = new ViewSDKClient(props.accessToken, props.onAnnotationEvent);
+    this.viewSDKClient = new ViewSDKClient(props.accessToken);
   }
 
   componentDidMount() {
@@ -159,6 +159,7 @@ class PDFEmbed extends Component<PDFEmbedProps> {
           const clientId = (this.viewSDKClient as any).clientId || "8c0cd670273d451cbc9b351b11d22318";
           const adobeConfig = {
             clientId,
+            locale: "fr-FR",
             ...(divId && { divId })
           };
           
@@ -174,6 +175,7 @@ class PDFEmbed extends Component<PDFEmbedProps> {
           // Register event handler if annotations are enabled
           if (enableAnnotations) {
             this.viewSDKClient.registerEventsHandler();
+            this.viewSDKClient.registerSaveApiHandler();
             
             // Get annotation manager and call callback
             adobeViewer.getAnnotationManager().then((annotationManager: AnnotationManager) => {
