@@ -169,6 +169,13 @@ class ViewSDKClient {
       /* call back function */
       (event: PDFEvent) => {
         console.log('PDF Callback:', event);
+        
+        // Store page number in localStorage when PAGE_VIEW event is received
+        if (event.type === 'PAGE_VIEW' && event.data && event.data.pageNumber && event.data.fileName) {
+          const storageKey = `pdf_page_${event.data.fileName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+          localStorage.setItem(storageKey, event.data.pageNumber.toString());
+          console.log(`Stored page ${event.data.pageNumber} for ${event.data.fileName}`);
+        }
       },
       /* options to control the callback execution */
       {

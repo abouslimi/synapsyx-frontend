@@ -175,7 +175,25 @@ class PDFEmbed extends Component<PDFEmbedProps> {
         
         this.previewFilePromise.then(async (adobeViewer) => {
           this.props.onPDFLoaded?.();
-          
+          adobeViewer.getAPIs().then((apis: any) => {
+            // Get the stored page number from localStorage
+            const storageKey = `pdf_page_${fileName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+            const storedPageNumber = localStorage.getItem(storageKey);
+            
+            if (storedPageNumber) {
+              const pageNumber = parseInt(storedPageNumber, 10);
+              if (pageNumber > 0) {
+                console.log(`Navigating to stored page ${pageNumber} for ${fileName}`);
+                apis.gotoLocation(pageNumber);
+              } else {
+                console.log(`Invalid stored page number: ${storedPageNumber}`);
+                apis.gotoLocation(1); // Default to page 1
+              }
+            } else {
+              console.log(`No stored page number found for ${fileName}, defaulting to page 1`);
+              apis.gotoLocation(1); // Default to page 1
+            }
+          });
           // Register user profile callback if access token is provided
           if (this.props.accessToken) {
             try {
