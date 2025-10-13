@@ -89,6 +89,9 @@ export const API_ENDPOINTS = {
   
   // Adobe PDF Viewer configuration
   ADOBE_CONFIG: '/api/adobe/config',
+  
+  // PDF Annotations endpoints
+  PDF_ANNOTATIONS: '/api/pdf-annotations',
 } as const;
 
 // API Response Types based on OpenAPI schema

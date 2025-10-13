@@ -8,8 +8,6 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import {
   Maximize2,
   Minimize2,
@@ -20,7 +18,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { PDFEmbed } from './pdf-embed';
-import UIConfigurations from './pdf-embed/PDF Annotation APIs/UIConfigurations/UIConfigurations';
+import CustomAnnotationList from './pdf-embed/CustomAnnotationList';
 
 interface CourseSection {
   course_id: string;
@@ -46,14 +44,10 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
   const [activeTab, setActiveTab] = useState('viewer');
   const [embedMode, setEmbedMode] = useState<'FULL_WINDOW' | 'IN_LINE' | 'SIZED_CONTAINER' | 'LIGHT_BOX'>('FULL_WINDOW');
 
-  const [showTools, setShowTools] = useState(true);
-  const [showZoomControl, setShowZoomControl] = useState(true);
-  const [showDownloadPDF, setShowDownloadPDF] = useState(true);
-  const [showPrintPDF, setShowPrintPDF] = useState(true);
-  const [defaultViewMode, setDefaultViewMode] = useState<'FIT_PAGE' | 'FIT_WIDTH' | 'FIT_HEIGHT'>('FIT_WIDTH');
   const [annotations, setAnnotations] = useState<PdfAnnotationResponse[]>([]);
   const [showAnnotations, setShowAnnotations] = useState(true);
   const [loadedAnnotationIds, setLoadedAnnotationIds] = useState<Set<string>>(new Set());
+  const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | undefined>();
   const annotationManagerRef = useRef<any>(null);
 
   // Load isFullscreen state from localStorage when dialog opens
@@ -91,8 +85,8 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
   });
 
   // Fetch annotations for the current course section
-  const { data: annotationsData, isLoading: isLoadingAnnotationsData, refetch: refetchAnnotations } = useQuery({
-    queryKey: ['pdf-annotations', courseSection.section_id, courseSection.course_id],
+  const { data: annotationsData, isLoading: isLoadingAnnotationsData, refetch: refetchAnnotations, error: annotationsError } = useQuery({
+    queryKey: ['pdf-annotations', courseSection.section_id, courseSection.course_id, courseSection.summary_id, isSummary],
     queryFn: async () => {
       if (!auth.user?.access_token) {
         throw new Error('No access token available');
@@ -106,6 +100,7 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
         params.summary_id = courseSection.summary_id; 
       }
       
+      console.log('Fetching annotations with params:', params);
       return pdfAnnotationService.getAnnotations(params, auth.user.access_token);
     },
     enabled: isOpen && !!auth.user?.access_token && (!!courseSection.section_id || !!courseSection.summary_id),
@@ -193,7 +188,7 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
   useEffect(() => {
     if (annotationsData?.annotations) {
       setAnnotations(annotationsData.annotations);
-      // console.log('###### annotationsData', annotationsData);
+      console.log('###### annotationsData', annotationsData);
       // Reset loaded annotation IDs when annotations change
       // setLoadedAnnotationIds(new Set());
     }
@@ -243,6 +238,14 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
 
   console.log('## course', courseSection);
   console.log('## annotations', annotations);
+  console.log('## annotationsData', annotationsData);
+  console.log('## isLoadingAnnotationsData', isLoadingAnnotationsData);
+  console.log('## annotationsError', annotationsError);
+  console.log('## auth.user?.access_token exists:', !!auth.user?.access_token);
+  console.log('## isOpen:', isOpen);
+  console.log('## courseSection.section_id:', courseSection.section_id);
+  console.log('## courseSection.summary_id:', courseSection.summary_id);
+  console.log('## isSummary:', isSummary);
 
   const handlePDFLoaded = () => {
     console.log('PDF loaded successfully');
@@ -336,6 +339,32 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
             console.error('Failed to hide annotations:', error);
           });
     }
+  };
+
+  const handleAnnotationSelect = (annotationId: string) => {
+    setSelectedAnnotationId(annotationId);
+    // You can add additional logic here to highlight the annotation in the PDF viewer
+    console.log('Annotation selected:', annotationId);
+  };
+
+  const handleAnnotationEdit = (annotationId: string, newBodyValue: string) => {
+    const annotationToUpdate = annotations.find(ann => ann.annotation_id === annotationId);
+    if (annotationToUpdate) {
+      const updatedAnnotationData = {
+        ...annotationToUpdate.annotation,
+        bodyValue: newBodyValue,
+        modified: new Date().toISOString()
+      };
+      
+      updateAnnotationMutation.mutate({
+        annotationId: annotationToUpdate.annotation_id,
+        annotationData: updatedAnnotationData,
+      });
+    }
+  };
+
+  const handleAnnotationDelete = (annotationId: string) => {
+    deleteAnnotationMutation.mutate(annotationId);
   };
 
   const toggleFullscreen = () => {
@@ -479,11 +508,12 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
                       fileName={courseSection.section_name}
                       fileId={courseSection.section_id}
                       embedMode={embedMode}
-                      showAnnotationTools={showTools}
-                      showDownloadPDF={showDownloadPDF}
-                      showPrintPDF={showPrintPDF}
-                      showZoomControl={showZoomControl}
-                      defaultViewMode={defaultViewMode}
+                      showAnnotationTools={true}
+                      showDownloadPDF={true}
+                      showPrintPDF={true}
+                      showZoomControl={true}
+                      includePDFAnnotations={true}
+                      defaultViewMode="FIT_WIDTH"
                       className={embedMode === 'IN_LINE' ? 'in-line-container' : undefined}
                       accessToken={auth.user?.access_token}
                       onPDFLoaded={handlePDFLoaded}
@@ -516,15 +546,13 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
                     </div>
                   </div>
                 ) : (
-                  <UIConfigurations
+                  <CustomAnnotationList
+                    annotations={annotations}
+                    onEditAnnotation={handleAnnotationEdit}
+                    onDeleteAnnotation={handleAnnotationDelete}
+                    onAnnotationSelect={handleAnnotationSelect}
+                    selectedAnnotationId={selectedAnnotationId}
                     className="h-full"
-                    id="annotations-pdf-div"
-                    onPDFLoaded={() => console.log('Annotations PDF loaded')}
-                    onAnnotationManagerReady={(manager) => {
-                      console.log('Annotations manager ready');
-                      // Load annotations into the manager using the safe loading function
-                      loadAnnotationsSafely(manager, annotations);
-                    }}
                   />
                 )}
               </div>
