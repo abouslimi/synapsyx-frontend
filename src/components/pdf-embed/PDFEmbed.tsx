@@ -51,6 +51,8 @@ export interface PDFEmbedProps {
   printWithAnnotations?: boolean;
   /** Include PDF annotations */
   includePDFAnnotations?: boolean;
+  /** Enable PDF analytics */
+  enablePDFAnalytics?: boolean;
   /** Custom CSS class name for the container */
   className?: string;
   /** Custom ID for the PDF container */
@@ -114,6 +116,7 @@ class PDFEmbed extends Component<PDFEmbedProps> {
       downloadWithAnnotations = true,
       printWithAnnotations = true,
       includePDFAnnotations = true,
+      enablePDFAnalytics = true,
       headers
     } = this.props;
 
@@ -133,6 +136,7 @@ class PDFEmbed extends Component<PDFEmbedProps> {
         downloadWithAnnotations,
         printWithAnnotations,
         includePDFAnnotations,
+        enablePDFAnalytics,
       };
 
       // Create preview config
