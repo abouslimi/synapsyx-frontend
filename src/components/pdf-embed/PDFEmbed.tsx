@@ -169,12 +169,21 @@ class PDFEmbed extends Component<PDFEmbedProps> {
 
         this.previewFilePromise = this.viewSDKClient.previewFile("pdf-div", viewerConfig);
         
-        this.previewFilePromise.then((adobeViewer) => {
+        this.previewFilePromise.then(async (adobeViewer) => {
           this.props.onPDFLoaded?.();
+          
+          // Register user profile callback if access token is provided
+          if (this.props.accessToken) {
+            try {
+              this.viewSDKClient.registerUserProfileCallback();
+            } catch (error) {
+              console.warn('Failed to register user profile callback:', error);
+            }
+          }
+          this.viewSDKClient.registerEventsHandler();
           
           // Register event handler if annotations are enabled
           if (enableAnnotations) {
-            this.viewSDKClient.registerEventsHandler();
             this.viewSDKClient.registerSaveApiHandler();
             
             // Get annotation manager and call callback

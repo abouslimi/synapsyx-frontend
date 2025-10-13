@@ -10,14 +10,16 @@ written permission of Adobe.
 */
 
 import type { AdobeDCView, ViewerConfig, SaveApiResponse, PDFEvent } from './types';
-import { API_ENDPOINTS, buildApiUrl } from '../../lib/apiConfig';
+import { API_ENDPOINTS, buildApiUrl, type UserResponse } from '../../lib/apiConfig';
 
 class ViewSDKClient {
   private readyPromise: Promise<void>;
   private adobeDCView?: AdobeDCView;
   private clientId?: string;
+  private accessToken?: string;
 
   constructor(accessToken?: string) {
+    this.accessToken = accessToken;
     this.readyPromise = new Promise(async (resolve) => {
       // Fetch client ID from server
       try {
@@ -152,7 +154,10 @@ class ViewSDKClient {
     this.adobeDCView?.registerCallback(
       window.AdobeDC.View.Enum.CallbackType.SAVE_API,
       saveApiHandler,
-      {}
+      {
+        autoSaveFrequency: 60,
+        enableFocusPolling: true
+      }
     );
   }
 
@@ -171,6 +176,90 @@ class ViewSDKClient {
         enablePDFAnalytics: true,
       }
     );
+  }
+
+  /**
+   * Fetch user profile from the API using the access token
+   */
+  private async fetchUserProfile(): Promise<UserResponse | null> {
+    if (!this.accessToken) {
+      console.warn('No access token provided for user profile fetch');
+      return null;
+    }
+
+    try {
+      const url = buildApiUrl(API_ENDPOINTS.USER_PROFILE);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        console.warn(`Failed to fetch user profile: ${response.status} ${response.statusText}`);
+        return null;
+      }
+
+      const userProfile = await response.json();
+      return userProfile;
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Register the user profile callback for Adobe PDF View SDK
+   */
+  async registerUserProfileCallback(): Promise<void> {
+    if (!this.adobeDCView) {
+      console.warn('Adobe DC View not initialized. Call previewFile first.');
+      return;
+    }
+
+    try {
+      // Fetch user profile from API
+      const userProfile = await this.fetchUserProfile();
+      
+      if (!userProfile) {
+        console.warn('Could not fetch user profile, skipping profile registration');
+        return;
+      }
+
+      // Create profile object in the required format
+      const profile = {
+        userProfile: {
+          name: userProfile.first_name && userProfile.last_name 
+            ? `${userProfile.first_name} ${userProfile.last_name}` 
+            : userProfile.email,
+          firstName: userProfile.first_name || '',
+          lastName: userProfile.last_name || '',
+          email: userProfile.email
+        }
+      };
+      console.log("Pdf user profile", profile);
+
+      // Register the callback
+      this.adobeDCView.registerCallback(
+        window.AdobeDC.View.Enum.CallbackType.GET_USER_PROFILE_API,
+        function() {
+          return new Promise((resolve) => {
+            resolve({
+              code: window.AdobeDC.View.Enum.ApiResponseCode.SUCCESS,
+              data: profile
+            });
+          });
+        },
+        {}
+      );
+
+      console.log('User profile callback registered successfully:', profile);
+    } catch (error) {
+      console.error('Error registering user profile callback:', error);
+    }
   }
 }
 
