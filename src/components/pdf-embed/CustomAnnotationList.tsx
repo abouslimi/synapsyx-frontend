@@ -14,7 +14,8 @@ import {
   User,
   Eye,
   EyeOff,
-  Reply
+  Reply,
+  AlertTriangle
 } from 'lucide-react';
 import { type PdfAnnotationResponse } from '@/lib/pdfAnnotationService';
 
@@ -23,6 +24,7 @@ const groupAnnotationsWithReplies = (annotations: PdfAnnotationResponse[]) => {
   const annotationMap = new Map<string, PdfAnnotationResponse>();
   const replyMap = new Map<string, PdfAnnotationResponse[]>();
   const topLevelAnnotations: PdfAnnotationResponse[] = [];
+  const orphanedAnnotations: PdfAnnotationResponse[] = [];
 
   // First pass: create annotation map and identify all annotation IDs
   annotations.forEach(annotation => {
@@ -35,16 +37,22 @@ const groupAnnotationsWithReplies = (annotations: PdfAnnotationResponse[]) => {
     
     // Check if this annotation is a reply to another annotation
     // A reply has target.source pointing to another annotation's ID
-    const isReply = targetSource && 
-                   annotation.annotation.motivation === 'replying' &&
-                   annotationMap.has(targetSource);
+    const isReply = targetSource && annotation.annotation.motivation === 'replying';
     
     if (isReply) {
-      // This is a reply to another annotation
-      if (!replyMap.has(targetSource)) {
-        replyMap.set(targetSource, []);
+      if (annotationMap.has(targetSource)) {
+        // This is a reply to an existing annotation
+        if (!replyMap.has(targetSource)) {
+          replyMap.set(targetSource, []);
+        }
+        replyMap.get(targetSource)!.push(annotation);
+      } else {
+        // This is an orphaned reply - parent annotation doesn't exist
+        console.warn(`Orphaned reply annotation found: ${annotation.annotation_id} references non-existent parent: ${targetSource}`);
+        orphanedAnnotations.push(annotation);
+        // Treat orphaned replies as top-level annotations for display purposes
+        topLevelAnnotations.push(annotation);
       }
-      replyMap.get(targetSource)!.push(annotation);
     } else {
       // This is a top-level annotation
       topLevelAnnotations.push(annotation);
@@ -63,7 +71,7 @@ const groupAnnotationsWithReplies = (annotations: PdfAnnotationResponse[]) => {
     );
   });
 
-  return { topLevelAnnotations, replyMap };
+  return { topLevelAnnotations, replyMap, orphanedAnnotations };
 };
 
 interface AnnotationItemProps {
@@ -75,6 +83,7 @@ interface AnnotationItemProps {
   replies?: PdfAnnotationResponse[];
   isReply?: boolean;
   selectedAnnotationId?: string;
+  isOrphaned?: boolean;
 }
 
 const AnnotationItem: React.FC<AnnotationItemProps> = ({
@@ -85,7 +94,8 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
   isSelected = false,
   replies = [],
   isReply = false,
-  selectedAnnotationId
+  selectedAnnotationId,
+  isOrphaned = false
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(annotation.annotation.bodyValue || '');
@@ -174,10 +184,19 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
           <div className="flex items-center gap-2">
             {getAnnotationTypeIcon(annotation.annotation.target?.selector?.subtype, annotation.annotation.motivation)}
             <CardTitle className="text-sm font-medium">
-              {isReply ? 'Reply' : `Page ${(annotation.annotation.target?.selector?.node?.index || 0) + 1}`}
+              {isOrphaned ? 'Réponse orpheline' : isReply ? 'Réponse' : `Page ${(annotation.annotation.target?.selector?.node?.index || 0) + 1}`}
             </CardTitle>
-            <Badge variant="outline" className="text-xs">
-              {annotation.annotation.motivation === 'replying' ? 'reply' : annotation.annotation.target?.selector?.subtype || 'annotation'}
+            <Badge variant={isOrphaned ? "destructive" : "outline"} className="text-xs">
+              {isOrphaned ? 'orpheline' :
+               annotation.annotation.motivation === 'replying' ? 'réponse' : 
+               annotation.annotation.motivation === 'commenting' ? 'commentaire' :
+               annotation.annotation.target?.selector?.subtype === 'note' ? 'note' :
+               annotation.annotation.target?.selector?.subtype === 'highlight' ? 'surlignage' :
+               annotation.annotation.target?.selector?.subtype === 'shape' ? 'forme' :
+               annotation.annotation.target?.selector?.subtype === 'underline' ? 'soulignement' :
+               annotation.annotation.target?.selector?.subtype === 'strikeout' ? 'barré' :
+               annotation.annotation.target?.selector?.subtype === 'freetext' ? 'texte libre' :
+               annotation.annotation.target?.selector?.subtype || 'annotation'}
             </Badge>
           </div>
           <div className="flex items-center gap-1">
@@ -213,27 +232,32 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
               onKeyDown={handleKeyPress}
-              placeholder="Enter annotation text..."
+              placeholder="Saisir le texte d'annotation..."
               className="text-sm"
               autoFocus
             />
             <div className="flex gap-2">
               <Button size="sm" onClick={handleEdit} className="h-7 text-xs">
-                Save
+                Enregistrer
               </Button>
               <Button size="sm" variant="outline" onClick={handleCancel} className="h-7 text-xs">
-                Cancel
+                Annuler
               </Button>
             </div>
           </div>
         ) : (
           <div className="space-y-2">
             <p className="text-sm text-gray-700 leading-relaxed">
-              {annotation.annotation.bodyValue || 'No text content'}
+              {annotation.annotation.bodyValue || 'Aucun contenu texte'}
             </p>
+            {isOrphaned && (
+              <div className="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-200">
+                <strong>Attention:</strong> Cette réponse fait référence à une annotation parent qui n'existe plus.
+              </div>
+            )}
             {annotation.annotation.motivation && (
               <div className="text-xs text-gray-600">
-                <strong>Motivation:</strong> {annotation.annotation.motivation}
+                <strong>Motivation:</strong> {annotation.annotation.motivation === 'commenting' ? 'commentaire' : annotation.annotation.motivation === 'replying' ? 'Réponse' : annotation.annotation.motivation}
               </div>
             )}
             <div className="flex items-center gap-4 text-xs text-gray-500">
@@ -281,6 +305,8 @@ interface CustomAnnotationListProps {
   onAnnotationSelect?: (annotationId: string) => void;
   selectedAnnotationId?: string;
   className?: string;
+  onCleanupOrphaned?: (orphanedIds: string[]) => void;
+  accessToken?: string;
 }
 
 const CustomAnnotationList: React.FC<CustomAnnotationListProps> = ({
@@ -289,7 +315,9 @@ const CustomAnnotationList: React.FC<CustomAnnotationListProps> = ({
   onDeleteAnnotation,
   onAnnotationSelect,
   selectedAnnotationId,
-  className = ''
+  className = '',
+  onCleanupOrphaned,
+  accessToken
 }) => {
   const [showAnnotations, setShowAnnotations] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -310,7 +338,7 @@ const CustomAnnotationList: React.FC<CustomAnnotationListProps> = ({
   console.log('Filtered annotations:', filteredAnnotations);
 
   // Group annotations with their replies
-  const { topLevelAnnotations, replyMap } = groupAnnotationsWithReplies(filteredAnnotations);
+  const { topLevelAnnotations, replyMap, orphanedAnnotations } = groupAnnotationsWithReplies(filteredAnnotations);
 
   // Group top-level annotations by page
   const annotationsByPage = topLevelAnnotations.reduce((acc, annotation) => {
@@ -323,6 +351,9 @@ const CustomAnnotationList: React.FC<CustomAnnotationListProps> = ({
     acc[validPage].push(annotation);
     return acc;
   }, {} as Record<number, PdfAnnotationResponse[]>);
+
+  // Create a set of orphaned annotation IDs for quick lookup
+  const orphanedAnnotationIds = new Set(orphanedAnnotations.map(ann => ann.annotation_id));
 
   const sortedPages = Object.keys(annotationsByPage)
     .map(Number)
@@ -340,20 +371,37 @@ const CustomAnnotationList: React.FC<CustomAnnotationListProps> = ({
           <h3 className="text-lg font-semibold">Annotations</h3>
           <Badge variant="secondary">{annotations?.length || 0}</Badge>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowAnnotations(!showAnnotations)}
-          className="h-8 w-8 p-0"
-        >
-          {showAnnotations ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-        </Button>
+        <div className="flex items-center gap-1">
+          {orphanedAnnotations.length > 0 && onCleanupOrphaned && accessToken && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const orphanedIds = orphanedAnnotations.map(ann => ann.annotation_id);
+                onCleanupOrphaned(orphanedIds);
+              }}
+              className="h-8 px-2 text-xs"
+              title={`Nettoyer ${orphanedAnnotations.length} annotation(s) orpheline(s)`}
+            >
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              Nettoyer ({orphanedAnnotations.length})
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowAnnotations(!showAnnotations)}
+            className="h-8 w-8 p-0"
+          >
+            {showAnnotations ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
       <div className="p-4 border-b">
         <Input
-          placeholder="Search annotations..."
+          placeholder="Rechercher des annotations..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="text-sm"
@@ -366,7 +414,7 @@ const CustomAnnotationList: React.FC<CustomAnnotationListProps> = ({
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <EyeOff className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">Annotations are hidden</p>
+              <p className="text-muted-foreground">Les annotations sont masquées</p>
             </div>
           </div>
         ) : filteredAnnotations.length === 0 ? (
@@ -374,10 +422,10 @@ const CustomAnnotationList: React.FC<CustomAnnotationListProps> = ({
             <div className="text-center">
               <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">
-                {searchTerm ? 'No annotations match your search' : 'No annotations yet'}
+                {searchTerm ? 'Aucune annotation ne correspond à votre recherche' : 'Aucune annotation pour le moment'}
               </p>
               <p className="text-sm text-muted-foreground mt-2">
-                {searchTerm ? 'Try a different search term' : 'Add annotations by highlighting text in the PDF viewer'}
+                {searchTerm ? 'Essayez un autre terme de recherche' : 'Ajoutez des annotations en surlignant le texte dans la visionneuse PDF'}
               </p>
             </div>
           </div>
@@ -405,6 +453,7 @@ const CustomAnnotationList: React.FC<CustomAnnotationListProps> = ({
                       isSelected={selectedAnnotationId === annotation.annotation_id}
                       replies={replyMap.get(annotation.annotation_id) || []}
                       selectedAnnotationId={selectedAnnotationId}
+                      isOrphaned={orphanedAnnotationIds.has(annotation.annotation_id)}
                     />
                   ))}
                 </div>

@@ -200,6 +200,35 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
     },
   });
 
+  // Mutation for cleaning up orphaned annotations
+  const cleanupOrphanedMutation = useMutation({
+    mutationFn: async (orphanedIds: string[]) => {
+      if (!auth.user?.access_token) {
+        throw new Error('No access token available');
+      }
+      
+      return pdfAnnotationService.bulkDeleteAnnotations(orphanedIds, auth.user.access_token);
+    },
+    onSuccess: (_, orphanedIds) => {
+      setAnnotations(prev => prev.filter(ann => !orphanedIds.includes(ann.annotation_id)));
+      // Remove the deleted annotation IDs from loaded set
+      setLoadedAnnotationIds(prev => {
+        const newSet = new Set(prev);
+        orphanedIds.forEach(id => {
+          const annotationToRemove = annotations.find(ann => ann.annotation_id === id);
+          if (annotationToRemove) {
+            newSet.delete(annotationToRemove.annotation.id);
+          }
+        });
+        return newSet;
+      });
+      queryClient.invalidateQueries({ queryKey: ['pdf-annotations'] });
+    },
+    onError: (error) => {
+      console.error('Failed to cleanup orphaned annotations:', error);
+    },
+  });
+
   // Update local annotations state when API data changes
   useEffect(() => {
     if (annotationsData?.annotations) {
@@ -383,6 +412,10 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
     deleteAnnotationMutation.mutate(annotationId);
   };
 
+  const handleCleanupOrphaned = (orphanedIds: string[]) => {
+    cleanupOrphanedMutation.mutate(orphanedIds);
+  };
+
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
   };
@@ -423,7 +456,7 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
                 variant="ghost"
                 size="sm"
                 onClick={toggleAnnotations}
-                title={showAnnotations ? 'Hide Annotations' : 'Show Annotations'}
+                title={showAnnotations ? 'Masquer les annotations' : 'Afficher les annotations'}
                 disabled={annotations.length === 0}
               >
                 <Highlighter className={`h-4 w-4 ${showAnnotations ? 'text-blue-600' : 'text-gray-400'}`} />
@@ -434,7 +467,7 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
                 variant="ghost"
                 size="sm"
                 onClick={() => refetchAnnotations()}
-                title="Refresh Annotations"
+                title="Actualiser les annotations"
                 disabled={isLoadingAnnotationsData}
               >
                 <RefreshCw className={`h-4 w-4 ${isLoadingAnnotationsData ? 'animate-spin' : ''}`} />
@@ -445,7 +478,7 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
                 variant="ghost"
                 size="sm"
                 onClick={toggleFullscreen}
-                title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+                title={isFullscreen ? 'Quitter le plein écran' : 'Plein écran'}
               >
                 {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </Button>
@@ -460,7 +493,7 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
             <TabsList className="mx-6 mb-4">
               <TabsTrigger value="viewer" className="flex items-center gap-2">
                 <Eye className="h-4 w-4" />
-                Viewer
+Visionneuse
               </TabsTrigger>
               <TabsTrigger value="annotations" className="flex items-center gap-2">
                 <Highlighter className="h-4 w-4" />
@@ -477,26 +510,26 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p className="text-muted-foreground">Loading PDF...</p>
+                    <p className="text-muted-foreground">Chargement du PDF...</p>
                   </div>
                 </div>
               ) : pdfUrlError ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center max-w-md">
                     <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">PDF Not Available</h3>
+                    <h3 className="text-lg font-semibold mb-2">PDF non disponible</h3>
                     <p className="text-muted-foreground mb-4">
                       {pdfUrlError instanceof Error && pdfUrlError.message.includes('PDF file not found')
-                        ? 'This PDF file is not available in our storage system.'
-                        : 'Failed to load PDF. Please try again later.'}
+                        ? 'Ce fichier PDF n\'est pas disponible dans notre système de stockage.'
+                        : 'Échec du chargement du PDF. Veuillez réessayer plus tard.'}
                     </p>
                     {pdfUrlError instanceof Error && pdfUrlError.message.includes('PDF file not found') && (
                       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
-                        <p className="font-medium">What you can do:</p>
+                        <p className="font-medium">Ce que vous pouvez faire :</p>
                         <ul className="mt-2 space-y-1 text-left">
-                          <li>• Contact support to report this issue</li>
-                          <li>• Check if the course has been updated</li>
-                          <li>• Try refreshing the page</li>
+                          <li>• Contactez le support pour signaler ce problème</li>
+                          <li>• Vérifiez si le cours a été mis à jour</li>
+                          <li>• Essayez de rafraîchir la page</li>
                         </ul>
                       </div>
                     )}
@@ -505,7 +538,7 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
                       variant="outline"
                       className="mt-4"
                     >
-                      Refresh Page
+Actualiser la page
                     </Button>
                   </div>
                 </div>
@@ -515,7 +548,7 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
                     <div className="h-full flex items-center justify-center">
                       <Button onClick={() => setEmbedMode('FULL_WINDOW')} size="lg">
                         <Eye className="h-4 w-4 mr-2" />
-                        View PDF
+Voir le PDF
                       </Button>
                     </div>
                   ) : (
@@ -548,16 +581,16 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                      <p className="text-muted-foreground">Loading annotations...</p>
+                      <p className="text-muted-foreground">Chargement des annotations...</p>
                     </div>
                   </div>
                 ) : annotations.length === 0 ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
                       <Highlighter className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">No annotations yet</p>
+                      <p className="text-muted-foreground">Aucune annotation pour le moment</p>
                       <p className="text-sm text-muted-foreground mt-2">
-                        Add annotations by highlighting text in the PDF viewer
+                        Ajoutez des annotations en surlignant le texte dans la visionneuse PDF
                       </p>
                     </div>
                   </div>
@@ -568,6 +601,8 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
                     onDeleteAnnotation={handleAnnotationDelete}
                     onAnnotationSelect={handleAnnotationSelect}
                     selectedAnnotationId={selectedAnnotationId}
+                    onCleanupOrphaned={handleCleanupOrphaned}
+                    accessToken={auth.user?.access_token}
                     className="h-full"
                   />
                 )}

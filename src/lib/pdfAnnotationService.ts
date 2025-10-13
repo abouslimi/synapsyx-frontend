@@ -236,6 +236,31 @@ class PdfAnnotationService {
     });
   }
 
+  // Clean up orphaned annotations (replies with missing parents)
+  async cleanupOrphanedAnnotations(
+    annotations: PdfAnnotationResponse[],
+    accessToken: string
+  ): Promise<SuccessResponse> {
+    const annotationMap = new Set(annotations.map(ann => ann.annotation_id));
+    const orphanedAnnotationIds: string[] = [];
+
+    annotations.forEach(annotation => {
+      const targetSource = annotation.annotation.target?.source;
+      const isReply = targetSource && annotation.annotation.motivation === 'replying';
+      
+      if (isReply && !annotationMap.has(targetSource)) {
+        orphanedAnnotationIds.push(annotation.annotation_id);
+      }
+    });
+
+    if (orphanedAnnotationIds.length === 0) {
+      return { success: true, message: 'No orphaned annotations found' };
+    }
+
+    console.log(`Cleaning up ${orphanedAnnotationIds.length} orphaned annotations:`, orphanedAnnotationIds);
+    return this.bulkDeleteAnnotations(orphanedAnnotationIds, accessToken);
+  }
+
   // Helper method to convert Adobe annotation to API format
   convertAdobeAnnotationToApi(
     adobeAnnotation: any,
