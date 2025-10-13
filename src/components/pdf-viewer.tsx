@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth as useOIDCAuth } from 'react-oidc-context';
 import { getAbsoluteUrl } from '@/lib/queryClient';
 import { API_ENDPOINTS } from '@/lib/apiConfig';
+import { pdfAnnotationService, type PdfAnnotationResponse, type AnnotationData } from '@/lib/pdfAnnotationService';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,8 +17,10 @@ import {
   Highlighter,
   Eye,
   X,
+  RefreshCw,
 } from "lucide-react";
 import { PDFEmbed } from './pdf-embed';
+import UIConfigurations from './pdf-embed/PDF Annotation APIs/UIConfigurations/UIConfigurations';
 
 interface CourseSection {
   course_id: string;
@@ -25,6 +28,7 @@ interface CourseSection {
   section_name: string;
   description?: string;
   split_page_count?: number;
+  summary_id?: string;
   [key: string]: any;
 }
 
@@ -35,8 +39,9 @@ interface PdfViewerProps {
   isSummary?: boolean;
 }
 
-export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = false }: PdfViewerProps) {
+export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }: PdfViewerProps) {
   const auth = useOIDCAuth();
+  const queryClient = useQueryClient();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [activeTab, setActiveTab] = useState('viewer');
   const [embedMode, setEmbedMode] = useState<'FULL_WINDOW' | 'IN_LINE' | 'SIZED_CONTAINER' | 'LIGHT_BOX'>('FULL_WINDOW');
@@ -46,7 +51,9 @@ export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = 
   const [showDownloadPDF, setShowDownloadPDF] = useState(true);
   const [showPrintPDF, setShowPrintPDF] = useState(true);
   const [defaultViewMode, setDefaultViewMode] = useState<'FIT_PAGE' | 'FIT_WIDTH' | 'FIT_HEIGHT'>('FIT_WIDTH');
-  const [annotations, setAnnotations] = useState<any[]>([]);
+  const [annotations, setAnnotations] = useState<PdfAnnotationResponse[]>([]);
+  const [showAnnotations, setShowAnnotations] = useState(true);
+  const annotationManagerRef = useRef<any>(null);
 
   // Load isFullscreen state from localStorage when dialog opens
   useEffect(() => {
@@ -65,11 +72,11 @@ export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = 
 
   // Fetch presigned URL for PDF - use section endpoint if available, otherwise course endpoint
   const { data: pdfUrl, isLoading: isLoadingPdf, error: pdfUrlError } = useQuery({
-    queryKey: [course.section_id ? API_ENDPOINTS.COURSE_SECTION_PDF_URL(course.section_id) : API_ENDPOINTS.COURSE_PDF_URL(course.course_id)],
+    queryKey: [courseSection.section_id ? API_ENDPOINTS.COURSE_SECTION_PDF_URL(courseSection.section_id) : API_ENDPOINTS.COURSE_PDF_URL(courseSection.course_id)],
     queryFn: async () => {
-      const endpoint = course.section_id
-        ? API_ENDPOINTS.COURSE_SECTION_PDF_URL(course.section_id)
-        : API_ENDPOINTS.COURSE_PDF_URL(course.course_id);
+      const endpoint = courseSection.section_id
+        ? API_ENDPOINTS.COURSE_SECTION_PDF_URL(courseSection.section_id)
+        : API_ENDPOINTS.COURSE_PDF_URL(courseSection.course_id);
       const response = await fetch(getAbsoluteUrl(endpoint));
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -78,13 +85,124 @@ export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = 
       const data = await response.json();
       return data.presignedUrl;
     },
-    enabled: isOpen && (!!course.course_id || !!course.section_id),
+    enabled: isOpen && (!!courseSection.course_id || !!courseSection.section_id),
     retry: false, // Don't retry on 404 errors
   });
 
-  console.log('## course', course);
-  console.log('## annotations', annotations);
+  // Fetch annotations for the current course section
+  const { data: annotationsData, isLoading: isLoadingAnnotationsData, refetch: refetchAnnotations } = useQuery({
+    queryKey: ['pdf-annotations', courseSection.section_id, courseSection.course_id],
+    queryFn: async () => {
+      if (!auth.user?.access_token) {
+        throw new Error('No access token available');
+      }
+      
+      const params: any = {};
+      if (courseSection.section_id) {
+        params.course_section_id = courseSection.section_id;
+      }
+      if (isSummary) {
+        params.summary_id = courseSection.summary_id; 
+      }
+      
+      return pdfAnnotationService.getAnnotations(params, auth.user.access_token);
+    },
+    enabled: isOpen && !!auth.user?.access_token && (!!courseSection.section_id || !!courseSection.summary_id),
+    retry: false,
+  });
 
+  // Mutation for creating annotations
+  const createAnnotationMutation = useMutation({
+    mutationFn: async (annotationData: AnnotationData) => {
+      if (!auth.user?.access_token) {
+        throw new Error('No access token available');
+      }
+      
+      const request = {
+        course_section_id: courseSection.section_id || null,
+        summary_id: isSummary ? courseSection.summary_id : undefined,
+        annotation: annotationData,
+      };
+      
+      return pdfAnnotationService.createAnnotation(request, auth.user.access_token);
+    },
+    onSuccess: (newAnnotation) => {
+      setAnnotations(prev => [...prev, newAnnotation]);
+      queryClient.invalidateQueries({ queryKey: ['pdf-annotations'] });
+    },
+    onError: (error) => {
+      console.error('Failed to create annotation:', error);
+    },
+  });
+
+  // Mutation for updating annotations
+  const updateAnnotationMutation = useMutation({
+    mutationFn: async ({ annotationId, annotationData }: { annotationId: string; annotationData: AnnotationData }) => {
+      if (!auth.user?.access_token) {
+        throw new Error('No access token available');
+      }
+      
+      const request = {
+        annotation: annotationData,
+      };
+      
+      return pdfAnnotationService.updateAnnotation(annotationId, request, auth.user.access_token);
+    },
+    onSuccess: (updatedAnnotation) => {
+      setAnnotations(prev => prev.map(ann => 
+        ann.annotation_id === updatedAnnotation.annotation_id ? updatedAnnotation : ann
+      ));
+      queryClient.invalidateQueries({ queryKey: ['pdf-annotations'] });
+    },
+    onError: (error) => {
+      console.error('Failed to update annotation:', error);
+    },
+  });
+
+  // Mutation for deleting annotations
+  const deleteAnnotationMutation = useMutation({
+    mutationFn: async (annotationId: string) => {
+      if (!auth.user?.access_token) {
+        throw new Error('No access token available');
+      }
+      
+      return pdfAnnotationService.deleteAnnotation(annotationId, auth.user.access_token);
+    },
+    onSuccess: (_, annotationId) => {
+      setAnnotations(prev => prev.filter(ann => ann.annotation_id !== annotationId));
+      queryClient.invalidateQueries({ queryKey: ['pdf-annotations'] });
+    },
+    onError: (error) => {
+      console.error('Failed to delete annotation:', error);
+    },
+  });
+
+  // Update local annotations state when API data changes
+  useEffect(() => {
+    if (annotationsData?.annotations) {
+      setAnnotations(annotationsData.annotations);
+    }
+  }, [annotationsData]);
+
+  // Load annotations into PDF viewer when annotation manager is ready
+  useEffect(() => {
+    if (annotationManagerRef.current && annotations.length > 0 && showAnnotations) {
+      const adobeAnnotations = annotations.map(ann => 
+        pdfAnnotationService.convertApiAnnotationToAdobe(ann)
+      );
+      
+      annotationManagerRef.current.addAnnotations(adobeAnnotations)
+        .then(() => {
+          console.log('Annotations loaded into PDF viewer');
+        })
+        .catch((error: any) => {
+          console.error('Failed to load annotations into PDF viewer:', error);
+        });
+    }
+  }, [annotationManagerRef.current, annotations, showAnnotations]);
+
+  console.log('## course', courseSection);
+  console.log('## annotations', annotations);
 
   const handlePDFLoaded = () => {
     console.log('PDF loaded successfully');
@@ -99,30 +217,97 @@ export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = 
 
     switch (event.type) {
       case 'ANNOTATION_ADDED':
-        setAnnotations(prev => [...prev, event.data]);
+        // Convert Adobe annotation to API format and create via API
+        const apiAnnotation = pdfAnnotationService.convertAdobeAnnotationToApi(
+          event.data,
+          courseSection.section_id,
+          isSummary ? courseSection.summary_id : undefined
+        );
+        createAnnotationMutation.mutate(apiAnnotation);
         break;
+        
       case 'ANNOTATION_DELETED':
-        setAnnotations(prev => prev.filter(ann => ann.id !== event.data.id));
+        // Find the annotation in our local state and delete via API
+        const annotationToDelete = annotations.find(ann => ann.annotation.id === event.data.id);
+        if (annotationToDelete) {
+          deleteAnnotationMutation.mutate(annotationToDelete.annotation_id);
+        }
         break;
+        
       case 'ANNOTATION_UPDATED':
-        setAnnotations(prev => prev.map(ann =>
-          ann.id === event.data.id ? event.data : ann
-        ));
+        // Find the annotation in our local state and update via API
+        const annotationToUpdate = annotations.find(ann => ann.annotation.id === event.data.id);
+        if (annotationToUpdate) {
+          const apiAnnotation = pdfAnnotationService.convertAdobeAnnotationToApi(event.data);
+          updateAnnotationMutation.mutate({
+            annotationId: annotationToUpdate.annotation_id,
+            annotationData: apiAnnotation,
+          });
+        }
         break;
+        
       case 'ANNOTATION_SELECTED':
-        // setSelectedAnnotation(event.data);
         console.log('Annotation selected:', event.data);
         break;
+        
       case 'ANNOTATION_UNSELECTED':
-        // setSelectedAnnotation(null);
         console.log('Annotation unselected');
         break;
     }
   };
 
-  const handleAnnotationManagerReady = () => {
-    // Annotation manager ready
+  const handleAnnotationManagerReady = (manager: any) => {
     console.log('Annotation manager ready');
+    annotationManagerRef.current = manager;
+    
+    // Load existing annotations if any
+    if (annotations.length > 0 && showAnnotations) {
+      const adobeAnnotations = annotations.map(ann => 
+        pdfAnnotationService.convertApiAnnotationToAdobe(ann)
+      );
+      
+      manager.addAnnotations(adobeAnnotations)
+        .then(() => {
+          console.log('Existing annotations loaded into PDF viewer');
+        })
+        .catch((error: any) => {
+          console.error('Failed to load existing annotations:', error);
+        });
+    }
+  };
+
+  const toggleAnnotations = () => {
+    setShowAnnotations(!showAnnotations);
+    if (annotationManagerRef.current) {
+      if (!showAnnotations) {
+        // Show annotations
+        const adobeAnnotations = annotations.map(ann => 
+          pdfAnnotationService.convertApiAnnotationToAdobe(ann)
+        );
+        annotationManagerRef.current.addAnnotations(adobeAnnotations)
+          .then(() => {
+            console.log('Annotations shown');
+          })
+          .catch((error: any) => {
+            console.error('Failed to show annotations:', error);
+          });
+      } else {
+        // Hide annotations by clearing them
+        annotationManagerRef.current.getAnnotations()
+          .then((currentAnnotations: any[]) => {
+            if (currentAnnotations.length > 0) {
+              const filter = { annotationIds: currentAnnotations.map(ann => ann.id) };
+              return annotationManagerRef.current.deleteAnnotations(filter);
+            }
+          })
+          .then(() => {
+            console.log('Annotations hidden');
+          })
+          .catch((error: any) => {
+            console.error('Failed to hide annotations:', error);
+          });
+      }
+    }
   };
 
   const toggleFullscreen = () => {
@@ -141,15 +326,15 @@ export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = 
               <FileText className="h-6 w-6 text-blue-600" />
               <div>
                 <DialogTitle className="text-xl font-semibold">
-                  {isSummary ? `Résumé - ${course.section_name}` : course.section_name}
+                  {isSummary ? `Résumé - ${courseSection.section_name}` : courseSection.section_name}
                 </DialogTitle>
                 <DialogDescription>
                   {isSummary ? 'Résumé du cours' : 'Cours'}
                 </DialogDescription>
               </div>
-              {course.split_page_count && (
+              {courseSection.split_page_count && (
                 <Badge variant="secondary">
-                  {course.split_page_count} pages
+                  {courseSection.split_page_count} pages
                 </Badge>
               )}
               {annotations.length > 0 && (
@@ -160,6 +345,28 @@ export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = 
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Annotation Toggle */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleAnnotations}
+                title={showAnnotations ? 'Hide Annotations' : 'Show Annotations'}
+                disabled={annotations.length === 0}
+              >
+                <Highlighter className={`h-4 w-4 ${showAnnotations ? 'text-blue-600' : 'text-gray-400'}`} />
+              </Button>
+
+              {/* Refresh Annotations */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => refetchAnnotations()}
+                title="Refresh Annotations"
+                disabled={isLoadingAnnotationsData}
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoadingAnnotationsData ? 'animate-spin' : ''}`} />
+              </Button>
+
               {/* Fullscreen Toggle */}
               <Button
                 variant="ghost"
@@ -241,8 +448,8 @@ export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = 
                   ) : (
                     <PDFEmbed
                       pdfUrl={pdfUrl}
-                      fileName={course.section_name}
-                      fileId={course.section_id}
+                      fileName={courseSection.section_name}
+                      fileId={courseSection.section_id}
                       embedMode={embedMode}
                       showAnnotationTools={showTools}
                       showDownloadPDF={showDownloadPDF}
@@ -261,72 +468,46 @@ export function PdfViewer({ courseSection: course, isOpen, onClose, isSummary = 
               ) : null}
             </TabsContent>
 
-            <TabsContent value="settings" className="flex-1 overflow-hidden mx-6 mb-6">
-              <div className="h-full border rounded-lg p-4">
-                <h3 className="text-lg font-semibold mb-4">PDF Settings</h3>
-                <div className="space-y-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="tools">Show Tools</Label>
-                      <Switch
-                        id="tools"
-                        checked={showTools}
-                        onCheckedChange={setShowTools}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="zoom-control">Show Zoom Control</Label>
-                      <Switch
-                        id="zoom-control"
-                        checked={showZoomControl}
-                        onCheckedChange={setShowZoomControl}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="download-pdf">Show Download PDF</Label>
-                      <Switch
-                        id="download-pdf"
-                        checked={showDownloadPDF}
-                        onCheckedChange={setShowDownloadPDF}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="print-pdf">Show Print PDF</Label>
-                      <Switch
-                        id="print-pdf"
-                        checked={showPrintPDF}
-                        onCheckedChange={setShowPrintPDF}
-                      />
+            <TabsContent value="annotations" className="flex-1 overflow-hidden mx-6 mb-6">
+              <div className="h-full border rounded-lg">
+                {isLoadingAnnotationsData ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                      <p className="text-muted-foreground">Loading annotations...</p>
                     </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label>Default View Mode</Label>
-                    <div className="flex gap-2">
-                      <Button
-                        variant={defaultViewMode === 'FIT_PAGE' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setDefaultViewMode('FIT_PAGE')}
-                      >
-                        Fit Page
-                      </Button>
-                      <Button
-                        variant={defaultViewMode === 'FIT_WIDTH' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setDefaultViewMode('FIT_WIDTH')}
-                      >
-                        Fit Width
-                      </Button>
-                      <Button
-                        variant={defaultViewMode === 'FIT_HEIGHT' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setDefaultViewMode('FIT_HEIGHT')}
-                      >
-                        Fit Height
-                      </Button>
+                ) : annotations.length === 0 ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <Highlighter className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">No annotations yet</p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Add annotations by highlighting text in the PDF viewer
+                      </p>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <UIConfigurations
+                    className="h-full"
+                    id="annotations-pdf-div"
+                    onPDFLoaded={() => console.log('Annotations PDF loaded')}
+                    onAnnotationManagerReady={(manager) => {
+                      console.log('Annotations manager ready');
+                      // Load annotations into the manager
+                      const adobeAnnotations = annotations.map(ann => 
+                        pdfAnnotationService.convertApiAnnotationToAdobe(ann)
+                      );
+                      manager.addAnnotations(adobeAnnotations)
+                        .then(() => {
+                          console.log('Annotations loaded in management view');
+                        })
+                        .catch((error: any) => {
+                          console.error('Failed to load annotations in management view:', error);
+                        });
+                    }}
+                  />
+                )}
               </div>
             </TabsContent>
           </Tabs>

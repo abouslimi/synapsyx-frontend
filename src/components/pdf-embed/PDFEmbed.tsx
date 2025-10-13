@@ -25,6 +25,8 @@ export interface PDFEmbedProps {
   embedMode?: 'IN_LINE' | 'FULL_WINDOW' | 'LIGHT_BOX' | 'SIZED_CONTAINER';
   /** Enable annotation APIs */
   enableAnnotations?: boolean;
+  /** Enable annotation APIs */
+  enableAnnotationAPIs?: boolean;
   /** Show annotation tools */
   showAnnotationTools?: boolean;
   /** Show download PDF button */
@@ -77,7 +79,7 @@ class PDFEmbed extends Component<PDFEmbedProps> {
 
   constructor(props: PDFEmbedProps) {
     super(props);
-    this.viewSDKClient = new ViewSDKClient(props.accessToken);
+    this.viewSDKClient = new ViewSDKClient(props.accessToken, props.onAnnotationEvent);
   }
 
   componentDidMount() {
@@ -99,6 +101,7 @@ class PDFEmbed extends Component<PDFEmbedProps> {
       fileId = "6d07d124-ac85-43b3-a867-36930f502ac6",
       embedMode = "FULL_WINDOW",
       enableAnnotations = true,
+      enableAnnotationAPIs = true,
       showAnnotationTools = true,
       showDownloadPDF = true,
       showPrintPDF = true,
@@ -117,7 +120,7 @@ class PDFEmbed extends Component<PDFEmbedProps> {
     this.viewSDKClient.ready().then(() => {
       const viewerConfig: ViewerConfig = {
         embedMode,
-        enableAnnotationAPIs: enableAnnotations,
+        enableAnnotationAPIs,
         showAnnotationTools,
         showDownloadPDF,
         showPrintPDF,
@@ -175,6 +178,7 @@ class PDFEmbed extends Component<PDFEmbedProps> {
             // Get annotation manager and call callback
             adobeViewer.getAnnotationManager().then((annotationManager: AnnotationManager) => {
               this.props.onAnnotationManagerReady?.(annotationManager);
+              annotationManager.registerEventListener(this.props.onAnnotationEvent, {listenOn: []});
             }).catch((error: any) => {
               console.warn('Failed to get annotation manager:', error);
             });

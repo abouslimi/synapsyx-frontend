@@ -58,6 +58,7 @@ export interface AnnotationManager {
   getAnnotations(): Promise<Annotation[]>;
   deleteAnnotations(filter: AnnotationFilter): Promise<void>;
   updateAnnotation(annotation: Annotation): Promise<void>;
+  registerEventListener(listener?: (event: any) => void, options?: { listenOn?: string[] }): void;
 }
 
 export interface Annotation {

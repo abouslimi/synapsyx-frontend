@@ -16,8 +16,10 @@ class ViewSDKClient {
   private readyPromise: Promise<void>;
   private adobeDCView?: AdobeDCView;
   private clientId?: string;
+  private onAnnotationEvent?: (event: any) => void;
 
-  constructor(accessToken?: string) {
+  constructor(accessToken?: string, onAnnotationEvent?: (event: any) => void) {
+    this.onAnnotationEvent = onAnnotationEvent;
     this.readyPromise = new Promise(async (resolve) => {
       // Fetch client ID from server
       try {
@@ -164,6 +166,10 @@ class ViewSDKClient {
       /* call back function */
       (event: PDFEvent) => {
         console.log(event);
+        // // Call the annotation event handler if provided
+        // if (this.onAnnotationEvent) {
+        //   this.onAnnotationEvent(event);
+        // }
       },
       /* options to control the callback execution */
       {
