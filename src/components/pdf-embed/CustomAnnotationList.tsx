@@ -19,6 +19,37 @@ import {
 } from 'lucide-react';
 import { type PdfAnnotationResponse } from '@/lib/pdfAnnotationService';
 
+// Utility functions for translating annotation values
+const translateMotivation = (motivation?: string): string => {
+  switch (motivation) {
+    case 'replying':
+      return 'réponse';
+    case 'commenting':
+      return 'commentaire';
+    default:
+      return motivation || 'annotation';
+  }
+};
+
+const translateSubtype = (subtype?: string): string => {
+  switch (subtype) {
+    case 'note':
+      return 'note';
+    case 'highlight':
+      return 'surlignage';
+    case 'shape':
+      return 'forme';
+    case 'underline':
+      return 'soulignement';
+    case 'strikeout':
+      return 'barré';
+    case 'freetext':
+      return 'texte libre';
+    default:
+      return subtype || 'annotation';
+  }
+};
+
 // Utility function to group annotations with their replies
 const groupAnnotationsWithReplies = (annotations: PdfAnnotationResponse[]) => {
   const annotationMap = new Map<string, PdfAnnotationResponse>();
@@ -190,7 +221,10 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
               {isOrphaned ? 'orpheline' :
                annotation.annotation.motivation === 'replying' ? 'réponse' : 
                annotation.annotation.motivation === 'commenting' ? 'commentaire' :
-               annotation.annotation.target?.selector?.subtype === 'note' ? 'note' :
+               annotation.annotation.motivation || 'annotation'}
+            </Badge>
+            <Badge variant="outline" className="text-xs">
+              {annotation.annotation.target?.selector?.subtype === 'note' ? 'note' :
                annotation.annotation.target?.selector?.subtype === 'highlight' ? 'surlignage' :
                annotation.annotation.target?.selector?.subtype === 'shape' ? 'forme' :
                annotation.annotation.target?.selector?.subtype === 'underline' ? 'soulignement' :
@@ -255,11 +289,6 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
                 <strong>Attention:</strong> Cette réponse fait référence à une annotation parent qui n'existe plus.
               </div>
             )}
-            {annotation.annotation.motivation && (
-              <div className="text-xs text-gray-600">
-                <strong>Motivation:</strong> {annotation.annotation.motivation === 'commenting' ? 'commentaire' : annotation.annotation.motivation === 'replying' ? 'Réponse' : annotation.annotation.motivation}
-              </div>
-            )}
             <div className="flex items-center gap-4 text-xs text-gray-500">
               <div className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
@@ -268,7 +297,7 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
               {annotation.annotation.creator?.name && (
                 <div className="flex items-center gap-1">
                   <User className="h-3 w-3" />
-                  {annotation.annotation.creator.name}
+                  {annotation.annotation.creator.name == "Guest" ? "Invité" : annotation.annotation.creator.name}
                 </div>
               )}
             </div>
@@ -328,12 +357,27 @@ const CustomAnnotationList: React.FC<CustomAnnotationListProps> = ({
   console.log('Sample annotation pageNumber type:', typeof annotations?.[0]?.annotation?.pageNumber);
   console.log('Sample annotation:', annotations?.[0]);
 
-  // Filter annotations based on search term
-  const filteredAnnotations = (annotations || []).filter(annotation =>
-    annotation.annotation.bodyValue?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    annotation.annotation.target?.selector?.subtype?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    annotation.annotation.motivation?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter annotations based on search term (including translated values)
+  const filteredAnnotations = (annotations || []).filter(annotation => {
+    const searchLower = searchTerm.toLowerCase();
+    
+    // Search in body value
+    const bodyValueMatch = annotation.annotation.bodyValue?.toLowerCase().includes(searchLower);
+    
+    // Search in original subtype
+    const originalSubtypeMatch = annotation.annotation.target?.selector?.subtype?.toLowerCase().includes(searchLower);
+    
+    // Search in translated subtype
+    const translatedSubtypeMatch = translateSubtype(annotation.annotation.target?.selector?.subtype).toLowerCase().includes(searchLower);
+    
+    // Search in original motivation
+    const originalMotivationMatch = annotation.annotation.motivation?.toLowerCase().includes(searchLower);
+    
+    // Search in translated motivation
+    const translatedMotivationMatch = translateMotivation(annotation.annotation.motivation).toLowerCase().includes(searchLower);
+    
+    return bodyValueMatch || originalSubtypeMatch || translatedSubtypeMatch || originalMotivationMatch || translatedMotivationMatch;
+  });
 
   console.log('Filtered annotations:', filteredAnnotations);
 
@@ -401,7 +445,7 @@ const CustomAnnotationList: React.FC<CustomAnnotationListProps> = ({
       {/* Search */}
       <div className="p-4 border-b">
         <Input
-          placeholder="Rechercher des annotations..."
+          placeholder="Rechercher des annotations (texte, surlignage, commentaire, réponse...)"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="text-sm"
