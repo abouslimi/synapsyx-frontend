@@ -102,7 +102,7 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
           <div className="flex items-center gap-2">
             {getAnnotationTypeIcon(annotation.annotation.target?.selector?.subtype)}
             <CardTitle className="text-sm font-medium">
-              Page {isNaN(annotation.annotation.pageNumber) ? 'Unknown' : annotation.annotation.pageNumber}
+              Page {(annotation.annotation.target?.selector?.node?.index || 0) + 1}
             </CardTitle>
             <Badge variant="outline" className="text-xs">
               {annotation.annotation.target?.selector?.subtype || 'annotation'}

@@ -49,6 +49,7 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
   const [loadedAnnotationIds, setLoadedAnnotationIds] = useState<Set<string>>(new Set());
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | undefined>();
   const annotationManagerRef = useRef<any>(null);
+  const activeTabRef = useRef<string>(activeTab);
 
   // Load isFullscreen state from localStorage when dialog opens
   useEffect(() => {
@@ -64,6 +65,21 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
   useEffect(() => {
     localStorage.setItem('pdf-viewer-fullscreen', JSON.stringify(isFullscreen));
   }, [isFullscreen]);
+
+  // Track activeTab changes and reset loadedAnnotationIds when switching to viewer
+  useEffect(() => {
+    const handleTabChange = () => {
+      // Get the current activeTab value from the state
+      // Since we can't directly access the previous value, we'll use a ref to track it
+      const previousTab = activeTabRef.current;
+      if (activeTab === 'viewer' && previousTab && previousTab !== 'viewer') {
+        setLoadedAnnotationIds(new Set());
+      }
+      activeTabRef.current = activeTab;
+    };
+
+    handleTabChange();
+  }, [activeTab]);
 
   // Fetch presigned URL for PDF - use section endpoint if available, otherwise course endpoint
   const { data: pdfUrl, isLoading: isLoadingPdf, error: pdfUrlError } = useQuery({
