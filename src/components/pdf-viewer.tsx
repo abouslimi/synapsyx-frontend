@@ -451,16 +451,6 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Annotation Toggle */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={toggleAnnotations}
-                title={showAnnotations ? 'Masquer les annotations' : 'Afficher les annotations'}
-                disabled={annotations.length === 0}
-              >
-                <Highlighter className={`h-4 w-4 ${showAnnotations ? 'text-blue-600' : 'text-gray-400'}`} />
-              </Button>
 
               {/* Refresh Annotations */}
               <Button
@@ -493,16 +483,12 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
             <TabsList className="mx-6 mb-4">
               <TabsTrigger value="viewer" className="flex items-center gap-2">
                 <Eye className="h-4 w-4" />
-Visionneuse
+                {isSummary ? 'Résumé' : 'Cours'}
               </TabsTrigger>
               <TabsTrigger value="annotations" className="flex items-center gap-2">
                 <Highlighter className="h-4 w-4" />
                 Annotations ({annotations.length})
               </TabsTrigger>
-              {/* <TabsTrigger value="settings" className="flex items-center gap-2">
-                <Settings className="h-4 w-4" />
-                Settings
-              </TabsTrigger> */}
             </TabsList>
 
             <TabsContent value="viewer" className="flex-1 overflow-hidden mx-6 mb-6">
