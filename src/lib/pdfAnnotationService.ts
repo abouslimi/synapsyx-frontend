@@ -242,11 +242,17 @@ class PdfAnnotationService {
     courseSectionId?: string,
     summaryId?: string
   ): AnnotationData {
+    // Ensure @context is properly formatted as an array
+    const context = adobeAnnotation["@context"];
+    const contextArray = Array.isArray(context) 
+      ? context 
+      : [
+          "https://www.w3.org/ns/anno.jsonld",
+          "https://comments.acrobat.com/ns/anno.jsonld"
+        ];
+
     return {
-      "@context": adobeAnnotation["@context"] || [
-        "https://www.w3.org/ns/anno.jsonld",
-        "https://comments.acrobat.com/ns/anno.jsonld"
-      ],
+      "@context": contextArray,
       type: adobeAnnotation.type || "Annotation",
       id: adobeAnnotation.id,
       pageNumber: adobeAnnotation.pageNumber,
@@ -261,11 +267,22 @@ class PdfAnnotationService {
 
   // Helper method to convert API annotation to Adobe format
   convertApiAnnotationToAdobe(apiAnnotation: PdfAnnotationResponse): any {
-    return {
-      ...apiAnnotation.annotation,
+    const annotation = apiAnnotation.annotation;
+    
+    // Ensure @context is properly formatted as an array for Adobe
+    const adobeAnnotation = {
+      ...annotation,
+      "@context": Array.isArray(annotation["@context"]) 
+        ? annotation["@context"] 
+        : [
+            "https://www.w3.org/ns/anno.jsonld",
+            "https://comments.acrobat.com/ns/anno.jsonld"
+          ],
       // Ensure the annotation has the correct structure for Adobe
-      pageNumber: apiAnnotation.annotation.pageNumber,
+      pageNumber: annotation.pageNumber,
     };
+    
+    return adobeAnnotation;
   }
 }
 
