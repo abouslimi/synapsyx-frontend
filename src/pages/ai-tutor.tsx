@@ -60,6 +60,7 @@ export default function AiTutor() {
   const [selectedUniversity, setSelectedUniversity] = useState<string>("");
   const [selectedLevel, setSelectedLevel] = useState<string>("");
   const [isSessionLoaded, setIsSessionLoaded] = useState<boolean>(false);
+  const [isContextCardVisible, setIsContextCardVisible] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
@@ -548,17 +549,17 @@ export default function AiTutor() {
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar with session history and context */}
-          <div className="lg:col-span-1 space-y-4">
+          <div className={`lg:col-span-1 ${isContextCardVisible ? 'space-y-4' : 'flex flex-col space-y-4'}`}>
             {/* Session History */}
-            <Card data-testid="session-history">
+            <Card data-testid="session-history" className={isContextCardVisible ? '' : 'flex-1 flex flex-col'}>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center">
                   <History className="w-5 h-5 mr-2" />
                   Historique des sessions
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2 p-4">
-                <div className="h-48">
+              <CardContent className={`space-y-2 p-4 ${isContextCardVisible ? '' : 'flex-1 flex flex-col'}`}>
+                <div className={isContextCardVisible ? 'h-48' : 'flex-1'}>
                   <ScrollArea className="h-full">
                     <div className="space-y-2 pr-4">
                       {isChatHistoryLoading ? (
@@ -594,7 +595,7 @@ export default function AiTutor() {
                     </div>
                   </ScrollArea>
                 </div>
-                <div className="space-y-2">
+                <div className={`space-y-2 ${isContextCardVisible ? '' : 'mt-auto'}`}>
                   <Button
                     onClick={handleCreateNewSession}
                     disabled={createSessionMutation.isPending}
@@ -611,12 +612,23 @@ export default function AiTutor() {
             {/* Context Selection */}
             <Card data-testid="context-selection">
               <CardHeader>
-                <CardTitle className="text-lg flex items-center">
-                  <Target className="w-5 h-5 mr-2" />
-                  Contexte
+                <CardTitle className="text-lg flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Target className="w-5 h-5 mr-2" />
+                    Contexte
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsContextCardVisible(!isContextCardVisible)}
+                    className="h-6 w-6 p-0"
+                  >
+                    {isContextCardVisible ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </Button>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              {isContextCardVisible && (
+                <CardContent className="space-y-3">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Université</label>
                   <Select 
@@ -719,7 +731,8 @@ export default function AiTutor() {
                     </ScrollArea>
                   </div>
                 </div>
-              </CardContent>
+                </CardContent>
+              )}
             </Card>
 
           </div>
