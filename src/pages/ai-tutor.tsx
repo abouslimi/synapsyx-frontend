@@ -604,16 +604,6 @@ export default function AiTutor() {
                     <Plus className="w-4 h-4 mr-1" />
                     Nouvelle session
                   </Button>
-                  {currentSessionId && (
-                    <Button
-                      onClick={loadSessionData}
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                    >
-                      Charger les données de session
-                    </Button>
-                  )}
                 </div>
               </CardContent>
             </Card>
