@@ -313,7 +313,6 @@ export default function Bibliotheque() {
                           >
                             <a 
                               href={getCourseLink(match.metadata.course_section)}
-                              target="_blank"
                               rel="noopener noreferrer"
                             >
                               <ExternalLink className="w-4 h-4 mr-2" />
