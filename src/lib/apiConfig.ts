@@ -359,6 +359,8 @@ export interface ChatSessionCreationRequest {
 
 export interface ChatSessionUpdateRequest {
   course_section_ids: string[];
+  university?: string;
+  level?: string;
 }
 
 export interface SimilaritySearchRequest {

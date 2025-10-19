@@ -92,27 +92,6 @@ export default function AiTutor() {
     window.history.replaceState({}, '', url.toString());
   };
 
-  // Set default values from sessionStorage or user data
-  useEffect(() => {
-    // Try sessionStorage first, then fallback to user data
-    const sessionUniversity = sessionStorage.getItem('selectedUniversity');
-    const sessionLevel = sessionStorage.getItem('selectedLevel');
-    
-    // Set university (priority: sessionStorage > user data)
-    if (sessionUniversity) {
-      setSelectedUniversity(sessionUniversity);
-    } else if (user?.university) {
-      setSelectedUniversity(user.university);
-    }
-    
-    // Set level (priority: sessionStorage > user data)
-    if (sessionLevel) {
-      setSelectedLevel(sessionLevel);
-    } else if (user?.cls) {
-      setSelectedLevel(user.cls);
-    }
-  }, [user]);
-
   // Initialize session from URL parameter
   useEffect(() => {
     const urlSessionId = getQueryParam('session_id');
@@ -164,6 +143,27 @@ export default function AiTutor() {
     },
     enabled: !!currentSessionId,
   });
+
+  // Set university and level: prioritize session data, fallback to user data
+  useEffect(() => {
+    if (currentSession) {
+      // If session has university/level, use those
+      if (currentSession.university) {
+        setSelectedUniversity(currentSession.university);
+      }
+      if (currentSession.level) {
+        setSelectedLevel(currentSession.level);
+      }
+    } else {
+      // If no session or session doesn't have values, use user data as fallback
+      if (user?.university) {
+        setSelectedUniversity(user.university);
+      }
+      if (user?.cls) {
+        setSelectedLevel(user.cls);
+      }
+    }
+  }, [currentSession, user]);
 
   // Fetch course sections for context selection with search
   const { data: courseSections } = useQuery<CourseSectionListResponse>({
@@ -220,6 +220,45 @@ export default function AiTutor() {
       toast({
         title: "Erreur",
         description: "Impossible de créer une nouvelle session",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update chat session
+  const updateSessionMutation = useMutation({
+    mutationFn: async (data: { course_section_ids: string[]; university?: string; level?: string }): Promise<ChatSessionResponse> => {
+      if (!currentSessionId) throw new Error("No session ID");
+      const response = await authenticatedApiRequest("PUT", API_ENDPOINTS.AI_CHAT_SESSION_DETAILS(currentSessionId), data, oidcAuth.user?.access_token);
+      const responseData = await response.json();
+      return responseData as ChatSessionResponse;
+    },
+    onSuccess: () => {
+      if (currentSessionId) {
+        queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.AI_CHAT_SESSION_DETAILS(currentSessionId)] });
+      }
+      queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.AI_CHAT] });
+      toast({
+        title: "Session mise à jour",
+        description: "Les paramètres de la session ont été mis à jour",
+      });
+    },
+    onError: (error: any) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Non autorisé",
+          description: "Vous êtes déconnecté. Redirection...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 500);
+        return;
+      }
+      
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour la session",
         variant: "destructive",
       });
     },
@@ -294,16 +333,41 @@ export default function AiTutor() {
   });
 
   const handleCreateNewSession = () => {
-    const sessionData: ChatSessionCreationRequest = {};
-    if (selectedCourseSections.length > 0) {
-      sessionData.course_section_ids = selectedCourseSections;
-    }
+    const sessionData: ChatSessionCreationRequest = {
+      course_section_ids: selectedCourseSections,
+      university: selectedUniversity,
+      level: selectedLevel,
+    };
     createSessionMutation.mutate(sessionData);
   };
 
   const handleLoadSession = (sessionId: string) => {
     setCurrentSessionId(sessionId);
     updateUrlWithSessionId(sessionId);
+  };
+
+  const handleUniversityChange = (value: string) => {
+    setSelectedUniversity(value);
+    // Update session if we have one
+    if (currentSessionId) {
+      updateSessionMutation.mutate({
+        course_section_ids: selectedCourseSections,
+        university: value,
+        level: selectedLevel,
+      });
+    }
+  };
+
+  const handleLevelChange = (value: string) => {
+    setSelectedLevel(value);
+    // Update session if we have one
+    if (currentSessionId) {
+      updateSessionMutation.mutate({
+        course_section_ids: selectedCourseSections,
+        university: selectedUniversity,
+        level: value,
+      });
+    }
   };
 
   const handleSendMessage = () => {
@@ -508,10 +572,7 @@ export default function AiTutor() {
                   <label className="text-sm font-medium mb-2 block">Université</label>
                   <Select 
                     value={selectedUniversity} 
-                    onValueChange={(value) => {
-                      setSelectedUniversity(value);
-                      sessionStorage.setItem('selectedUniversity', value);
-                    }}
+                    onValueChange={handleUniversityChange}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Sélectionner une université" />
@@ -530,10 +591,7 @@ export default function AiTutor() {
                   <label className="text-sm font-medium mb-2 block">Niveau</label>
                   <Select 
                     value={selectedLevel} 
-                    onValueChange={(value) => {
-                      setSelectedLevel(value);
-                      sessionStorage.setItem('selectedLevel', value);
-                    }}
+                    onValueChange={handleLevelChange}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Sélectionner un niveau" />
