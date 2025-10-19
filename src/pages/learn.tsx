@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { authenticatedApiRequest } from "@/lib/queryClient";
 import { API_ENDPOINTS } from "@/lib/apiConfig";
 import { useAuthQuery, useAuth } from "@/hooks/useAuth";
@@ -24,7 +25,10 @@ import {
   SortAsc,
   SortDesc,
   Clock,
-  BarChart3
+  BarChart3,
+  ChevronDown,
+  ChevronUp,
+  RotateCcw
 } from "lucide-react";
 import { CoursePreviewModal } from "@/components/course-preview-modal";
 import { PdfViewer } from "@/components/pdf-viewer";
@@ -47,6 +51,7 @@ export default function Learn() {
   const [showPdfViewer, setShowPdfViewer] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [showSummaryViewer, setShowSummaryViewer] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Fetch user preferences
   const { data: userPreferences } = useAuthQuery([API_ENDPOINTS.USER_PREFERENCES], {
@@ -316,34 +321,63 @@ export default function Learn() {
                 <Filter className="h-5 w-5" />
                 Filtres et tri
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSearchTerm("");
-                  setUniversityFilter("all");
-                  setLevelFilter("all");
-                  setSemesterFilter("all");
-                  setSourceFilter("all");
-                  setSortBy("course_name");
-                  setSortOrder("asc");
-                  
-                  // Save the reset preferences
-                  savePreferences({
-                    universityFilter: "all",
-                    levelFilter: "all",
-                    semesterFilter: "all",
-                    sourceFilter: "all",
-                    sortBy: "course_name",
-                    sortOrder: "asc",
-                  });
-                }}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                Réinitialiser
-              </Button>
+              <div className="flex items-center gap-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowFilters(!showFilters)}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        {showFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{showFilters ? "Masquer" : "Afficher"}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSearchTerm("");
+                          setUniversityFilter("all");
+                          setLevelFilter("all");
+                          setSemesterFilter("all");
+                          setSourceFilter("all");
+                          setSortBy("course_name");
+                          setSortOrder("asc");
+                          
+                          // Save the reset preferences
+                          savePreferences({
+                            universityFilter: "all",
+                            levelFilter: "all",
+                            semesterFilter: "all",
+                            sourceFilter: "all",
+                            sortBy: "course_name",
+                            sortOrder: "asc",
+                          });
+                        }}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Réinitialiser</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             </CardTitle>
           </CardHeader>
+          {showFilters && (
           <CardContent>
             <div className="space-y-4">
               {/* Search Bar */}
@@ -478,6 +512,7 @@ export default function Learn() {
               )}
             </div>
           </CardContent>
+          )}
         </Card>
 
         {/* Course Tabs */}
