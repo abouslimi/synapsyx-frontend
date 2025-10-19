@@ -43,7 +43,7 @@ function Router() {
       ) : (
         <ProfileGuard>
           <Route path="/" component={Home} />
-          <Route path="/courses/:type?" component={Courses} />
+          {/* <Route path="/courses/:type?" component={Courses} /> */}
           <Route path="/courses/:course_id/:course_section_id" component={CourseSection} />
           <Route path="/learn" component={Learn} />
           {/* <Route path="/practice" component={Practice} /> */}
