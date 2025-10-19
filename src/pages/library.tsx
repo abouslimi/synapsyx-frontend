@@ -127,9 +127,9 @@ export default function Bibliotheque() {
     );
   };
 
-  const getCourseLink = (courseSection: any) => {
+  const getCourseLink = (courseSection: any, page: number=1) => {
     if (!courseSection) return "#";
-    return `/courses/${courseSection.course_id}/${courseSection.section_id}?page=${courseSection.section_start || 1}`;
+    return `/courses/${courseSection.course_id}/${courseSection.section_id}?page=${page}`;
   };
 
   return (
@@ -312,7 +312,7 @@ export default function Bibliotheque() {
                             className="ml-4"
                           >
                             <a 
-                              href={getCourseLink(match.metadata.course_section)}
+                              href={getCourseLink(match.metadata.course_section, match.metadata.page || 1)}
                               rel="noopener noreferrer"
                             >
                               <ExternalLink className="w-4 h-4 mr-2" />
