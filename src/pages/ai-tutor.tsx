@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -345,6 +345,8 @@ export default function AiTutor() {
   const handleLoadSession = (sessionId: string) => {
     setCurrentSessionId(sessionId);
     updateUrlWithSessionId(sessionId);
+    // Refresh sessions data when a session is selected
+    queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.AI_CHAT] });
   };
 
   const handleUniversityChange = (value: string) => {
