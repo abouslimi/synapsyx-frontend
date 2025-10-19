@@ -129,7 +129,7 @@ export default function Bibliotheque() {
 
   const getCourseLink = (courseSection: any) => {
     if (!courseSection) return "#";
-    return `/cours/${courseSection.course_id}/${courseSection.section_id}?page=${courseSection.section_start || 1}`;
+    return `/courses/${courseSection.course_id}/${courseSection.section_id}?page=${courseSection.section_start || 1}`;
   };
 
   return (
