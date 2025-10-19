@@ -589,7 +589,7 @@ export default function AiTutor() {
                             {session.last_message?.content?.slice(0, 15)}...
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            {formatInTimeZone(new Date(session.created_at), 'Africa/Tunis', "dd/MM/yyyy HH:mm", { locale: fr })}
+                            {formatInTimeZone(new Date(session.updated_at), 'Africa/Tunis', "dd/MM/yyyy HH:mm", { locale: fr })}
                           </span>
                         </div>
                       </Button>
