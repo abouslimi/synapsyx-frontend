@@ -289,7 +289,7 @@ export default function Bibliotheque() {
                               rel="noopener noreferrer"
                             >
                               <ExternalLink className="w-4 h-4 mr-2" />
-                              Ouvrir dans le cours {match.metadata.course_section.course?.course_name} - {match.metadata.course_section.section_name}
+                              Ouvrir dans le cours
                             </a>
                           </Button>
                         </div>
