@@ -39,6 +39,8 @@ import {
   ChevronUp,
   History,
   X,
+  PanelLeft,
+  PanelLeftClose,
 } from "lucide-react";
 import { authenticatedApiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -61,6 +63,7 @@ export default function AiTutor() {
   const [selectedLevel, setSelectedLevel] = useState<string>("");
   const [isSessionLoaded, setIsSessionLoaded] = useState<boolean>(false);
   const [isContextCardVisible, setIsContextCardVisible] = useState<boolean>(false);
+  const [isSidebarVisible, setIsSidebarVisible] = useState<boolean>(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
@@ -530,6 +533,15 @@ export default function AiTutor() {
               </p>
             </div>
             <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsSidebarVisible(!isSidebarVisible)}
+                className="flex items-center"
+              >
+                {isSidebarVisible ? <PanelLeftClose className="w-4 h-4 mr-1" /> : <PanelLeft className="w-4 h-4 mr-1" />}
+                {isSidebarVisible ? 'Masquer' : 'Afficher'} sidebar
+              </Button>
               <Badge variant="secondary" className="flex items-center">
                 <Brain className="w-4 h-4 mr-1" />
                 SynapsyX GPT
@@ -547,9 +559,10 @@ export default function AiTutor() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className={`grid grid-cols-1 gap-6 ${isSidebarVisible ? 'lg:grid-cols-4' : 'lg:grid-cols-1'}`}>
           {/* Sidebar with session history and context */}
-          <div className={`lg:col-span-1 ${isContextCardVisible ? 'space-y-4' : 'flex flex-col space-y-4'}`}>
+          {isSidebarVisible && (
+            <div className={`lg:col-span-1 ${isContextCardVisible ? 'space-y-4' : 'flex flex-col space-y-4'}`}>
             {/* Session History */}
             <Card data-testid="session-history" className={isContextCardVisible ? '' : 'flex-1 flex flex-col'}>
               <CardHeader>
@@ -734,11 +747,11 @@ export default function AiTutor() {
                 </CardContent>
               )}
             </Card>
-
-          </div>
+            </div>
+          )}
 
           {/* Main chat area */}
-          <div className="lg:col-span-3">
+          <div className={isSidebarVisible ? 'lg:col-span-3' : 'lg:col-span-1'}>
             <Card className="h-full flex flex-col" data-testid="chat-area">
               <CardHeader className="flex-shrink-0">
                 <CardTitle className="flex items-center justify-between">
