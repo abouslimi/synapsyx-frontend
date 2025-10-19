@@ -19,8 +19,6 @@ import type {
   ChatSessionResponse, 
   ChatHistoryWithoutMessagesResponse,
   ChatSessionCreationRequest,
-  SimilaritySearchRequest,
-  SimilaritySearchResponse,
   CourseSectionResponse,
   CourseSectionListResponse
 } from "@/lib/apiConfig";
@@ -399,26 +397,6 @@ export default function AiTutor() {
     }
 
     sendMessageMutation.mutate(messageData);
-  };
-
-  const handleSimilaritySearch = () => {
-    if (!message.trim()) return;
-
-    const searchData: SimilaritySearchRequest = {
-      query: message.trim(),
-      top_k: 10,
-      include_images: false,
-    };
-
-    if (selectedCourseSections.length > 0) {
-      searchData.course_section_ids = selectedCourseSections;
-    }
-
-    if (selectedUniversity) {
-      searchData.index_name = selectedUniversity.toLowerCase();
-    }
-
-    similaritySearchMutation.mutate(searchData);
   };
 
   const handleCourseSectionToggle = useCallback((sectionId: string) => {
