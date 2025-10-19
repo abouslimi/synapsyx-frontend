@@ -39,7 +39,7 @@ export function CoursePreviewModal({
   onViewPdf,
   onStartQuiz
 }: CoursePreviewModalProps) {
-  const [activeTab, setActiveTab] = useState("details");
+  const [activeTab, setActiveTab] = useState("statistics");
   const oidcAuth = useOIDCAuth();
 
   // Fetch course section statistics
@@ -79,13 +79,18 @@ export function CoursePreviewModal({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div>
-              <DialogTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                {courseSection.section_name || courseSection.course_name || 'Aperçu du cours'}
-              </DialogTitle>
-              <DialogDescription>
-                Aperçu détaillé du cours avec statistiques et informations sur les sections
-              </DialogDescription>
+                <DialogTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  {courseSection.course_name || 'Cours'}
+                </DialogTitle>
+                <DialogDescription>
+                  {courseSection.original_total_pages && courseSection.split_page_count && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Pages:</span>
+                      <span>{courseSection.split_page_count}/{courseSection.original_total_pages}</span>
+                    </div>
+                  )}
+                </DialogDescription>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -103,8 +108,8 @@ export function CoursePreviewModal({
             <div className="space-y-2">
               <h2 className="text-2xl font-bold">{courseSection.section_name || courseSection.course_name}</h2>
               <div className="flex items-center gap-2">
-                {courseSection.theme_name && (
-                  <Badge variant="default">{courseSection.theme_name}</Badge>
+                {courseSection.theme && (
+                  <Badge variant="default">{courseSection.theme}</Badge>
                 )}
                 {courseSection.university && (
                   <Badge variant="outline">{courseSection.university}</Badge>
@@ -129,110 +134,8 @@ export function CoursePreviewModal({
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="details">Détails</TabsTrigger>
               <TabsTrigger value="statistics">Statistiques</TabsTrigger>
             </TabsList>
-
-            <TabsContent value="details" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Course Information */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <BookOpen className="h-5 w-5" />
-                      Informations du cours
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {courseSection.course_name && (
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">Nom du cours:</span>
-                        <span>{courseSection.course_name}</span>
-                      </div>
-                    )}
-                    {courseSection.section_name && (
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">Section:</span>
-                        <span>{courseSection.section_name}</span>
-                      </div>
-                    )}
-                    {courseSection.theme_name && (
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">Thème:</span>
-                        <span>{courseSection.theme_name}</span>
-                      </div>
-                    )}
-                    {courseSection.year && (
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">Version:</span>
-                        <span>{courseSection.year}</span>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* File Information */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <FileText className="h-5 w-5" />
-                      Informations du fichier
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {courseSection.original_total_pages && (
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        <span className="font-medium">Pages:</span>
-                        <span>{courseSection.original_total_pages}</span>
-                      </div>
-                    )}
-                    {courseSection.size && (
-                      <div className="flex items-center gap-2">
-                        <BarChart3 className="h-4 w-4" />
-                        <span className="font-medium">Taille:</span>
-                        <span>{formatFileSize(courseSection.size)}</span>
-                      </div>
-                    )}
-                    {courseSection.file_description && (
-                      <div className="space-y-1">
-                        <span className="font-medium">Description:</span>
-                        <p className="text-sm text-muted-foreground">
-                          {courseSection.file_description}
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Actions */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Actions disponibles</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <Button variant="outline" onClick={onViewPdf} className="flex items-center gap-2">
-                      <Eye className="h-4 w-4" />
-                      Ouvrir PDF
-                    </Button>
-                    <Button variant="outline" className="flex items-center gap-2">
-                      <Download className="h-4 w-4" />
-                      Télécharger
-                    </Button>
-                    <Button variant="outline" className="flex items-center gap-2">
-                      <Save className="h-4 w-4" />
-                      Sauvegarder
-                    </Button>
-                    <Button variant="outline" className="flex items-center gap-2">
-                      <Share2 className="h-4 w-4" />
-                      Partager
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
 
             <TabsContent value="statistics" className="space-y-4">
               {statistics ? (

@@ -12,15 +12,15 @@ import { authenticatedApiRequest } from "@/lib/queryClient";
 import { API_ENDPOINTS } from "@/lib/apiConfig";
 import { useAuthQuery, useAuth } from "@/hooks/useAuth";
 import { useAuth as useOIDCAuth } from "react-oidc-context";
-import { 
-  Search, 
-  BookOpen, 
-  Download, 
-  Eye, 
-  FileText, 
-  Share2, 
-  Save, 
-  Play, 
+import {
+  Search,
+  BookOpen,
+  Download,
+  Eye,
+  FileText,
+  Share2,
+  Save,
+  Play,
   Filter,
   SortAsc,
   SortDesc,
@@ -38,7 +38,7 @@ export default function Learn() {
   const { user } = useAuth();
   const oidcAuth = useOIDCAuth();
   const queryClient = useQueryClient();
-  
+
   const [searchTerm, setSearchTerm] = useState("");
   const [universityFilter, setUniversityFilter] = useState("all");
   const [levelFilter, setLevelFilter] = useState("all");
@@ -75,7 +75,7 @@ export default function Learn() {
     if (user && (userPreferences as any)?.preferences) {
       // Extract preferences from the flat structure: userPreferences.preferences
       const actualPreferences = (userPreferences as any)?.preferences || {};
-      
+
       // Use saved preferences if available, otherwise use user profile defaults
       const savedUniversity = actualPreferences.universityFilter;
       const savedLevel = actualPreferences.levelFilter;
@@ -83,11 +83,11 @@ export default function Learn() {
       const savedSource = actualPreferences.sourceFilter;
       const savedSortBy = actualPreferences.sortBy;
       const savedSortOrder = actualPreferences.sortOrder;
-      
+
       if (savedUniversity) {
         setUniversityFilter(savedUniversity);
       }
-      
+
       if (savedLevel) {
         setLevelFilter(savedLevel);
       }
@@ -122,10 +122,10 @@ export default function Learn() {
   const savePreferences = (newPreferences: any) => {
     if (user) {
       // First invalidate and refetch courses with new filters
-      queryClient.invalidateQueries({ 
+      queryClient.invalidateQueries({
         queryKey: [
           API_ENDPOINTS.COURSES,
-          { 
+          {
             type: "University",
             university: newPreferences.universityFilter !== "all" ? newPreferences.universityFilter : undefined,
             level: newPreferences.levelFilter !== "all" ? newPreferences.levelFilter : undefined,
@@ -137,7 +137,7 @@ export default function Learn() {
           }
         ]
       });
-      
+
       // Then save the preferences
       savePreferencesMutation.mutate(newPreferences);
     }
@@ -218,7 +218,7 @@ export default function Learn() {
   const { data: coursesData, isLoading } = useQuery({
     queryKey: [
       API_ENDPOINTS.COURSES,
-      { 
+      {
         type: "University",
         university: universityFilter !== "all" ? universityFilter : undefined,
         level: levelFilter !== "all" ? levelFilter : undefined,
@@ -234,7 +234,7 @@ export default function Learn() {
     queryFn: async ({ queryKey }) => {
       const [url, filters] = queryKey;
       const params = new URLSearchParams();
-      
+
       if (filters && typeof filters === 'object') {
         Object.entries(filters).forEach(([key, value]) => {
           if (value !== undefined && value !== null && value !== "") {
@@ -242,7 +242,7 @@ export default function Learn() {
           }
         });
       }
-      
+
       const response = await authenticatedApiRequest(
         "GET",
         `${url}?${params.toString()}`,
@@ -257,7 +257,7 @@ export default function Learn() {
   const { data: searchData, isLoading: isSearching } = useQuery({
     queryKey: [
       API_ENDPOINTS.COURSES_SEARCH,
-      { 
+      {
         keyword: searchTerm,
         type: "University",
         university: universityFilter !== "all" ? universityFilter : undefined,
@@ -274,7 +274,7 @@ export default function Learn() {
     queryFn: async ({ queryKey }) => {
       const [url, filters] = queryKey;
       const params = new URLSearchParams();
-      
+
       if (filters && typeof filters === 'object') {
         Object.entries(filters).forEach(([key, value]) => {
           if (value !== undefined && value !== null && value !== "") {
@@ -282,7 +282,7 @@ export default function Learn() {
           }
         });
       }
-      
+
       const response = await authenticatedApiRequest(
         "GET",
         `${url}?${params.toString()}`,
@@ -295,7 +295,7 @@ export default function Learn() {
   });
 
   // Use search results if search term exists, otherwise use regular courses
-  const courses = searchTerm && searchTerm.length > 0 
+  const courses = searchTerm && searchTerm.length > 0
     ? (searchData?.courses || [])
     : (coursesData?.courses || []);
 
@@ -308,9 +308,6 @@ export default function Learn() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-4">Cours</h1>
-          <p className="text-lg text-muted-foreground">
-            Accédez aux cours organisés par cycles universitaires
-          </p>
         </div>
 
         {/* Filters */}
@@ -328,23 +325,6 @@ export default function Learn() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setShowFilters(!showFilters)}
-                        className="text-muted-foreground hover:text-foreground"
-                      >
-                        {showFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{showFilters ? "Masquer" : "Afficher"}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
                         onClick={() => {
                           setSearchTerm("");
                           setUniversityFilter("all");
@@ -353,7 +333,7 @@ export default function Learn() {
                           setSourceFilter("all");
                           setSortBy("course_name");
                           setSortOrder("asc");
-                          
+
                           // Save the reset preferences
                           savePreferences({
                             universityFilter: "all",
@@ -374,160 +354,171 @@ export default function Learn() {
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowFilters(!showFilters)}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        {showFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{showFilters ? "Masquer" : "Afficher"}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </CardTitle>
           </CardHeader>
           {showFilters && (
-          <CardContent>
-            <div className="space-y-4">
-              {/* Search Bar */}
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Rechercher un cours..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                  data-testid="search-input"
-                />
-              </div>
-              
-              {/* Filter Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Université</label>
-                  <Select value={universityFilter} onValueChange={handleUniversityChange} data-testid="university-filter">
-                    <SelectTrigger className={universityFilter !== "all" ? "border-primary" : ""}>
-                      <SelectValue placeholder="Sélectionner" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Toutes les universités</SelectItem>
-                      <SelectItem value="FMT">F.M. Tunis</SelectItem>
-                      <SelectItem value="FMS">F.M. Sousse</SelectItem>
-                      <SelectItem value="FMM">F.M. Monastir</SelectItem>
-                      <SelectItem value="FMSfax">F.M. Sfax</SelectItem>
-                    </SelectContent>
-                  </Select>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Search Bar */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Rechercher un cours..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                    data-testid="search-input"
+                  />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Niveau</label>
-                  <Select value={levelFilter} onValueChange={handleLevelChange} data-testid="level-filter">
-                    <SelectTrigger className={levelFilter !== "all" ? "border-primary" : ""}>
-                      <SelectValue placeholder="Sélectionner" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tous les niveaux</SelectItem>
-                      <SelectItem value="PCEM1">PCEM1</SelectItem>
-                      <SelectItem value="PCEM2">PCEM2</SelectItem>
-                      <SelectItem value="DCEM1">DCEM1</SelectItem>
-                      <SelectItem value="DCEM2">DCEM2</SelectItem>
-                      <SelectItem value="DCEM3">DCEM3</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Semestre</label>
-                  <Select value={semesterFilter} onValueChange={handleSemesterChange} data-testid="semester-filter">
-                    <SelectTrigger className={semesterFilter !== "all" ? "border-primary" : ""}>
-                      <SelectValue placeholder="Sélectionner" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tous les semestres</SelectItem>
-                      <SelectItem value="1">Semestre 1</SelectItem>
-                      <SelectItem value="2">Semestre 2</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Source</label>
-                  <Select value={sourceFilter} onValueChange={handleSourceChange}>
-                    <SelectTrigger className={sourceFilter !== "all" ? "border-primary" : ""}>
-                      <SelectValue placeholder="Sélectionner" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Toutes les sources</SelectItem>
-                      <SelectItem value="platform">Plateforme</SelectItem>
-                      <SelectItem value="user">Mes fichiers</SelectItem>
-                      <SelectItem value="shared">Partagés</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Trier par</label>
-                  <div className="flex gap-2">
-                    <Select value={sortBy} onValueChange={handleSortByChange}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Critère" />
+                {/* Filter Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Université</label>
+                    <Select value={universityFilter} onValueChange={handleUniversityChange} data-testid="university-filter">
+                      <SelectTrigger className={universityFilter !== "all" ? "border-primary" : ""}>
+                        <SelectValue placeholder="Sélectionner" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="course_name">Nom du cours</SelectItem>
-                        <SelectItem value="theme_name">Thème</SelectItem>
-                        <SelectItem value="university">Université</SelectItem>
-                        <SelectItem value="cls">Niveau</SelectItem>
-                        <SelectItem value="created_at">Date de création</SelectItem>
+                        <SelectItem value="all">Toutes les universités</SelectItem>
+                        <SelectItem value="FMT">F.M. Tunis</SelectItem>
+                        <SelectItem value="FMS">F.M. Sousse</SelectItem>
+                        <SelectItem value="FMM">F.M. Monastir</SelectItem>
+                        <SelectItem value="FMSfax">F.M. Sfax</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSortOrderChange(sortOrder === "asc" ? "desc" : "asc")}
-                      className="px-3"
-                      title={sortOrder === "asc" ? "Trier par ordre décroissant" : "Trier par ordre croissant"}
-                    >
-                      {sortOrder === "asc" ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
-                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Niveau</label>
+                    <Select value={levelFilter} onValueChange={handleLevelChange} data-testid="level-filter">
+                      <SelectTrigger className={levelFilter !== "all" ? "border-primary" : ""}>
+                        <SelectValue placeholder="Sélectionner" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tous les niveaux</SelectItem>
+                        <SelectItem value="PCEM1">PCEM1</SelectItem>
+                        <SelectItem value="PCEM2">PCEM2</SelectItem>
+                        <SelectItem value="DCEM1">DCEM1</SelectItem>
+                        <SelectItem value="DCEM2">DCEM2</SelectItem>
+                        <SelectItem value="DCEM3">DCEM3</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Semestre</label>
+                    <Select value={semesterFilter} onValueChange={handleSemesterChange} data-testid="semester-filter">
+                      <SelectTrigger className={semesterFilter !== "all" ? "border-primary" : ""}>
+                        <SelectValue placeholder="Sélectionner" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tous les semestres</SelectItem>
+                        <SelectItem value="1">Semestre 1</SelectItem>
+                        <SelectItem value="2">Semestre 2</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Source</label>
+                    <Select value={sourceFilter} onValueChange={handleSourceChange}>
+                      <SelectTrigger className={sourceFilter !== "all" ? "border-primary" : ""}>
+                        <SelectValue placeholder="Sélectionner" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Toutes les sources</SelectItem>
+                        <SelectItem value="platform">Plateforme</SelectItem>
+                        <SelectItem value="user">Mes fichiers</SelectItem>
+                        <SelectItem value="shared">Partagés</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Trier par</label>
+                    <div className="flex gap-2">
+                      <Select value={sortBy} onValueChange={handleSortByChange}>
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Critère" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="course_name">Nom du cours</SelectItem>
+                          <SelectItem value="theme_name">Thème</SelectItem>
+                          <SelectItem value="university">Université</SelectItem>
+                          <SelectItem value="cls">Niveau</SelectItem>
+                          <SelectItem value="created_at">Date de création</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSortOrderChange(sortOrder === "asc" ? "desc" : "asc")}
+                        className="px-3"
+                        title={sortOrder === "asc" ? "Trier par ordre décroissant" : "Trier par ordre croissant"}
+                      >
+                        {sortOrder === "asc" ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Active Filters Summary */}
-              {(universityFilter !== "all" || levelFilter !== "all" || semesterFilter !== "all" || sourceFilter !== "all") && (
-                <div className="flex flex-wrap gap-2 pt-2 border-t">
-                  <span className="text-sm text-muted-foreground">Filtres actifs:</span>
-                  {universityFilter !== "all" && (
-                    <Badge variant="secondary" className="text-xs">
-                      Université: {universityFilter}
-                    </Badge>
-                  )}
-                  {levelFilter !== "all" && (
-                    <Badge variant="secondary" className="text-xs">
-                      Niveau: {levelFilter}
-                    </Badge>
-                  )}
-                  {semesterFilter !== "all" && (
-                    <Badge variant="secondary" className="text-xs">
-                      Semestre: {semesterFilter === "1" ? "Semestre 1" : "Semestre 2"}
-                    </Badge>
-                  )}
-                  {sourceFilter !== "all" && (
-                    <Badge variant="secondary" className="text-xs">
-                      Source: {sourceFilter === "platform" ? "Plateforme" : sourceFilter === "user" ? "Mes fichiers" : "Partagés"}
-                    </Badge>
-                  )}
-                </div>
-              )}
-            </div>
-          </CardContent>
+                {/* Active Filters Summary */}
+                {(universityFilter !== "all" || levelFilter !== "all" || semesterFilter !== "all" || sourceFilter !== "all") && (
+                  <div className="flex flex-wrap gap-2 pt-2 border-t">
+                    <span className="text-sm text-muted-foreground">Filtres actifs:</span>
+                    {universityFilter !== "all" && (
+                      <Badge variant="secondary" className="text-xs">
+                        Université: {universityFilter}
+                      </Badge>
+                    )}
+                    {levelFilter !== "all" && (
+                      <Badge variant="secondary" className="text-xs">
+                        Niveau: {levelFilter}
+                      </Badge>
+                    )}
+                    {semesterFilter !== "all" && (
+                      <Badge variant="secondary" className="text-xs">
+                        Semestre: {semesterFilter === "1" ? "Semestre 1" : "Semestre 2"}
+                      </Badge>
+                    )}
+                    {sourceFilter !== "all" && (
+                      <Badge variant="secondary" className="text-xs">
+                        Source: {sourceFilter === "platform" ? "Plateforme" : sourceFilter === "user" ? "Mes fichiers" : "Partagés"}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+              </div>
+            </CardContent>
           )}
         </Card>
 
         {/* Course Tabs */}
         <Tabs defaultValue="university">
-          
+
 
           <TabsContent value="university" className="space-y-4">
             <div className="mb-4">
               <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Organisation par cycles universitaires</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Cours organisés par cycles PCEM1, PCEM2, DCEM1-3
-                  </p>
-                </div>
                 {!isLoading && !isSearching && (
                   <div className="text-sm text-muted-foreground">
                     {universityCourses.length} cours trouvé{universityCourses.length > 1 ? 's' : ''}
@@ -535,8 +526,8 @@ export default function Learn() {
                 )}
               </div>
             </div>
-            <GroupedCourseGrid 
-              courses={universityCourses} 
+            <GroupedCourseGrid
+              courses={universityCourses}
               isLoading={isLoading || isSearching}
               onPreview={(course) => {
                 setSelectedCourse(course);
@@ -765,15 +756,15 @@ function CourseGrid({
 }
 */
 
-function GroupedCourseGrid({ 
-  courses, 
-  isLoading, 
-  onPreview, 
-  onViewPdf, 
+function GroupedCourseGrid({
+  courses,
+  isLoading,
+  onPreview,
+  onViewPdf,
   onStartQuiz,
   onViewSummary
-}: { 
-  courses: any[]; 
+}: {
+  courses: any[];
   isLoading: boolean;
   onPreview: (course: any) => void;
   onViewPdf: (course: any) => void;
@@ -819,15 +810,15 @@ function GroupedCourseGrid({
   const groupedCourses = courses.reduce((acc: Record<string, Record<string, any[]>>, course: any) => {
     const themeName = course.theme_name || course.theme || 'Sans thème';
     const courseName = course.course_name || 'Sans nom de cours';
-    
+
     if (!acc[themeName]) {
       acc[themeName] = {};
     }
-    
+
     if (!acc[themeName][courseName]) {
       acc[themeName][courseName] = [];
     }
-    
+
     // If course has sections, add each section as a separate item
     if (course.sections && course.sections.length > 0) {
       course.sections.forEach((section: any) => {
@@ -852,7 +843,7 @@ function GroupedCourseGrid({
         title: course.course_name,
       });
     }
-    
+
     return acc;
   }, {} as Record<string, Record<string, any[]>>);
 
@@ -861,7 +852,7 @@ function GroupedCourseGrid({
       {Object.entries(groupedCourses).map(([themeName, coursesByCourseName]: [string, Record<string, any[]>]) => {
         const courseCount = Object.keys(coursesByCourseName).length;
         const totalSections = Object.values(coursesByCourseName).reduce((sum: number, sections: any[]) => sum + sections.length, 0);
-        
+
         return (
           <Card key={themeName} className="overflow-hidden">
             <CardHeader className="pb-3">
@@ -869,7 +860,7 @@ function GroupedCourseGrid({
                 <div>
                   <CardTitle className="text-xl">{themeName}</CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {courseCount} cours • {totalSections} sections
+                    {courseCount} thèmes • {totalSections} cours
                   </p>
                 </div>
               </div>
@@ -911,13 +902,13 @@ function GroupedCourseGrid({
   );
 }
 
-function CourseCard({ 
-  course, 
-  onPreview, 
-  onViewPdf, 
+function CourseCard({
+  course,
+  onPreview,
+  onViewPdf,
   onStartQuiz,
   onViewSummary
-}: { 
+}: {
   course: any;
   onPreview: (course: any) => void;
   onViewPdf: (course: any) => void;
@@ -930,8 +921,8 @@ function CourseCard({
   };
 
   return (
-    <Card 
-      className="hover:shadow-lg transition-shadow flex flex-col h-full cursor-pointer" 
+    <Card
+      className="hover:shadow-lg transition-shadow flex flex-col h-full cursor-pointer"
       data-testid={`course-${course.id}`}
       onClick={() => onPreview(course)}
     >
@@ -943,10 +934,10 @@ function CourseCard({
               {course.university && (
                 <Badge variant="outline" className="text-xs">
                   {course.university === 'FMT' ? 'F.M. Tunis' :
-                   course.university === 'FMS' ? 'F.M. Sousse' :
-                   course.university === 'FMM' ? 'F.M. Monastir' :
-                   course.university === 'FMSfax' ? 'F.M. Sfax' :
-                   course.university}
+                    course.university === 'FMS' ? 'F.M. Sousse' :
+                      course.university === 'FMM' ? 'F.M. Monastir' :
+                        course.university === 'FMSfax' ? 'F.M. Sfax' :
+                          course.university}
                 </Badge>
               )}
               {course.cls && (
@@ -1001,8 +992,8 @@ function CourseCard({
 
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-1">
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 variant="outline"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1013,8 +1004,8 @@ function CourseCard({
                 <FileText className="w-3 h-3 mr-1" />
                 <span className="hidden sm:inline">Ouvrir</span>
               </Button>
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 variant="outline"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1028,8 +1019,8 @@ function CourseCard({
             </div>
             {(course.summary_file_path || course.pdf_path) && (
               <div className="grid grid-cols-1 gap-1">
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   variant="outline"
                   onClick={(e) => {
                     e.stopPropagation();
