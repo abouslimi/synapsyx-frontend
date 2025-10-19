@@ -264,8 +264,8 @@ class PdfAnnotationService {
   // Helper method to convert Adobe annotation to API format
   convertAdobeAnnotationToApi(
     adobeAnnotation: any,
-    courseSectionId?: string,
-    summaryId?: string
+    _courseSectionId?: string,
+    _summaryId?: string
   ): AnnotationData {
     // Ensure @context is properly formatted as an array
     const context = adobeAnnotation["@context"];

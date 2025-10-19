@@ -45,7 +45,7 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
   const [embedMode, setEmbedMode] = useState<'FULL_WINDOW' | 'IN_LINE' | 'SIZED_CONTAINER' | 'LIGHT_BOX'>('FULL_WINDOW');
 
   const [annotations, setAnnotations] = useState<PdfAnnotationResponse[]>([]);
-  const [showAnnotations, setShowAnnotations] = useState(true);
+  const [showAnnotations] = useState(true);
   const [loadedAnnotationIds, setLoadedAnnotationIds] = useState<Set<string>>(new Set());
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | undefined>();
   const annotationManagerRef = useRef<any>(null);
@@ -364,27 +364,6 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
     }
   };
 
-  const toggleAnnotations = () => {
-    const newShowState = !showAnnotations;
-    setShowAnnotations(newShowState);
-    
-    if (annotationManagerRef.current) {
-      annotationManagerRef.current.getAnnotations()
-          .then((currentAnnotations: any[]) => {
-            if (currentAnnotations.length > 0) {
-              const filter = { annotationIds: currentAnnotations.map(ann => ann.id) };
-              return newShowState? annotationManagerRef.current.importAnnotations(filter) // setLoadedAnnotationIds
-              : annotationManagerRef.current.clearAnnotations();
-            }
-          })
-          .then(() => {
-            console.log('Annotations hidden');
-          })
-          .catch((error: any) => {
-            console.error('Failed to hide annotations:', error);
-          });
-    }
-  };
 
   const handleAnnotationSelect = (annotationId: string) => {
     setSelectedAnnotationId(annotationId);

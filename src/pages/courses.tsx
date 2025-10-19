@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, BookOpen, Download, Eye } from "lucide-react";
 import { useLocation } from "wouter";
-import { buildApiUrl, API_ENDPOINTS } from "@/lib/apiConfig";
+import { API_ENDPOINTS } from "@/lib/apiConfig";
 import { authenticatedFetch } from "@/lib/authHelpers";
 
 export default function Courses() {

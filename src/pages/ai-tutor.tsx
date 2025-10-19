@@ -25,7 +25,6 @@ import {
   Bot, 
   Send, 
   User, 
-  MessageSquare,
   Clock,
   Brain,
   BookOpen,
@@ -76,15 +75,51 @@ export default function AiTutor() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  // Set default values from user data
+  // Helper function to get query parameter from URL
+  const getQueryParam = (name: string): string | null => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(name);
+  };
+
+  // Helper function to update URL with session_id parameter
+  const updateUrlWithSessionId = (sessionId: string | null) => {
+    const url = new URL(window.location.href);
+    if (sessionId) {
+      url.searchParams.set('session_id', sessionId);
+    } else {
+      url.searchParams.delete('session_id');
+    }
+    window.history.replaceState({}, '', url.toString());
+  };
+
+  // Set default values from sessionStorage or user data
   useEffect(() => {
-    if (user?.university) {
+    // Try sessionStorage first, then fallback to user data
+    const sessionUniversity = sessionStorage.getItem('selectedUniversity');
+    const sessionLevel = sessionStorage.getItem('selectedLevel');
+    
+    // Set university (priority: sessionStorage > user data)
+    if (sessionUniversity) {
+      setSelectedUniversity(sessionUniversity);
+    } else if (user?.university) {
       setSelectedUniversity(user.university);
     }
-    if (user?.cls) {
+    
+    // Set level (priority: sessionStorage > user data)
+    if (sessionLevel) {
+      setSelectedLevel(sessionLevel);
+    } else if (user?.cls) {
       setSelectedLevel(user.cls);
     }
   }, [user]);
+
+  // Initialize session from URL parameter
+  useEffect(() => {
+    const urlSessionId = getQueryParam('session_id');
+    if (urlSessionId && urlSessionId !== currentSessionId) {
+      setCurrentSessionId(urlSessionId);
+    }
+  }, [currentSessionId]);
 
   // Fetch chat history (sessions)
   const { data: chatHistory } = useQuery<ChatHistoryWithoutMessagesResponse>({
@@ -162,6 +197,7 @@ export default function AiTutor() {
     },
     onSuccess: (response: ChatSessionResponse) => {
       setCurrentSessionId(response.session_id);
+      updateUrlWithSessionId(response.session_id);
       queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.AI_CHAT] });
       toast({
         title: "Nouvelle session créée",
@@ -267,6 +303,7 @@ export default function AiTutor() {
 
   const handleLoadSession = (sessionId: string) => {
     setCurrentSessionId(sessionId);
+    updateUrlWithSessionId(sessionId);
   };
 
   const handleSendMessage = () => {
@@ -292,6 +329,9 @@ export default function AiTutor() {
       messageData.course_section_ids = selectedCourseSections;
     }
 
+    if (selectedUniversity) {
+      messageData.search_index_name = selectedUniversity.toLowerCase();
+    }
 
     sendMessageMutation.mutate(messageData);
   };
@@ -309,6 +349,9 @@ export default function AiTutor() {
       searchData.course_section_ids = selectedCourseSections;
     }
 
+    if (selectedUniversity) {
+      searchData.index_name = selectedUniversity.toLowerCase();
+    }
 
     similaritySearchMutation.mutate(searchData);
   };
@@ -341,12 +384,6 @@ export default function AiTutor() {
     );
   }
 
-  const quickQuestions = [
-    "Explique-moi la physiopathologie de l'insuffisance cardiaque",
-    "Quels sont les signes cliniques d'un AVC ?",
-    "Comment diagnostiquer une pneumonie ?",
-    "Quels sont les différents types d'anémie ?",
-  ];
 
 
   const universities = [
@@ -432,7 +469,7 @@ export default function AiTutor() {
                       >
                         <div className="flex flex-col items-start">
                           <span className="text-xs font-medium">
-                            Session {session.session_id.slice(0, 8)}...
+                            Session {session.last_message?.content?.slice(0, 8)}...
                           </span>
                           <span className="text-xs text-muted-foreground">
                             {format(new Date(session.created_at), "dd/MM/yyyy HH:mm", { locale: fr })}
@@ -469,7 +506,13 @@ export default function AiTutor() {
               <CardContent className="space-y-3">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Université</label>
-                  <Select value={selectedUniversity} onValueChange={setSelectedUniversity}>
+                  <Select 
+                    value={selectedUniversity} 
+                    onValueChange={(value) => {
+                      setSelectedUniversity(value);
+                      sessionStorage.setItem('selectedUniversity', value);
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Sélectionner une université" />
                     </SelectTrigger>
@@ -485,7 +528,13 @@ export default function AiTutor() {
                 
                 <div>
                   <label className="text-sm font-medium mb-2 block">Niveau</label>
-                  <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+                  <Select 
+                    value={selectedLevel} 
+                    onValueChange={(value) => {
+                      setSelectedLevel(value);
+                      sessionStorage.setItem('selectedLevel', value);
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Sélectionner un niveau" />
                     </SelectTrigger>
@@ -564,29 +613,6 @@ export default function AiTutor() {
               </CardContent>
             </Card>
 
-            {/* Quick Questions */}
-            <Card data-testid="quick-questions">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center">
-                  <MessageSquare className="w-5 h-5 mr-2" />
-                  Questions rapides
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {quickQuestions.map((question, index) => (
-                  <Button
-                    key={index}
-                    variant="outline"
-                    size="sm"
-                    className="w-full text-left h-auto p-3 justify-start"
-                    onClick={() => setMessage(question)}
-                    data-testid={`quick-question-${index}`}
-                  >
-                    <span className="text-xs line-clamp-3">{question}</span>
-                  </Button>
-                ))}
-              </CardContent>
-            </Card>
           </div>
 
           {/* Main chat area */}
@@ -605,7 +631,7 @@ export default function AiTutor() {
               <CardContent className="flex-1 flex flex-col p-0">
                 {/* Messages area */}
                 <ScrollArea className="flex-1 p-4">
-                  <div className="space-y-4">
+                  <div className="space-y-4 min-h-0">
                     {/* Welcome message */}
                     {!currentSessionId && (
                       <div className="flex items-start space-x-3">
@@ -649,10 +675,18 @@ export default function AiTutor() {
                                 </div>
                               )}
                             </div>
-                            <Avatar className="w-8 h-8 bg-secondary">
-                              <AvatarFallback>
-                                <User className="w-4 h-4 text-secondary-foreground" />
-                              </AvatarFallback>
+                            <Avatar className="w-8 h-8">
+                              {user?.profileImageUrl ? (
+                                <img 
+                                  src={user.profileImageUrl} 
+                                  alt="Profile" 
+                                  className="w-full h-full object-cover rounded-full"
+                                />
+                              ) : (
+                                <AvatarFallback>
+                                  <User className="w-4 h-4 text-secondary-foreground" />
+                                </AvatarFallback>
+                              )}
                             </Avatar>
                           </div>
                         )}
@@ -662,7 +696,7 @@ export default function AiTutor() {
                           <div className="flex items-start space-x-3">
                             <Avatar className="w-8 h-8 bg-primary">
                               <AvatarFallback>
-                                <Bot className="w-4 h-4 text-primary-foreground" />
+                                <Brain className="w-4 h-4 text-primary-foreground" />
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 bg-muted p-4 rounded-lg">
@@ -694,7 +728,7 @@ export default function AiTutor() {
                       <div className="flex items-start space-x-3">
                         <Avatar className="w-8 h-8 bg-primary">
                           <AvatarFallback>
-                            <Bot className="w-4 h-4 text-primary-foreground" />
+                            <Brain className="w-4 h-4 text-primary-foreground" />
                           </AvatarFallback>
                         </Avatar>
                         <div className="bg-muted p-4 rounded-lg">

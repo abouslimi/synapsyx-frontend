@@ -30,6 +30,7 @@ export const buildApiUrl = (endpoint: string): string => {
 // API Endpoints based on OpenAPI specification
 export const API_ENDPOINTS = {
   // Authentication endpoints
+  LOGIN: '/api/auth/login',
   REGISTER: '/api/auth/register',
   USER_PROFILE: '/api/auth/user',
   RESEND_VERIFICATION: '/api/auth/resend-verification',
@@ -79,6 +80,7 @@ export const API_ENDPOINTS = {
   AI_CHAT_SESSION: '/api/ai/chat/session',
   AI_CHAT_SESSION_DETAILS: (sessionId: string) => `/api/ai/chat/session/${sessionId}`,
   AI_SIMILARITY_SEARCH: '/api/ai/similarity-search',
+  AI_CREDITS: '/api/ai/credits',
   
   // Subscription endpoints
   SUBSCRIPTION: '/api/subscriptions/',
@@ -87,6 +89,7 @@ export const API_ENDPOINTS = {
   
   // System endpoints
   HEALTH: '/health',
+  ROOT: '/',
   
   // Adobe PDF Viewer configuration
   ADOBE_CONFIG: '/api/adobe/config',
@@ -313,6 +316,8 @@ export interface ChatSessionResponse {
   session_id: string;
   user_id: string;
   course_section_ids?: string[];
+  university?: string;
+  level?: string;
   created_at: string;
   updated_at: string;
   messages?: ChatMessageResponse[];
@@ -327,8 +332,18 @@ export interface ChatSessionWithoutMessages {
   session_id: string;
   user_id: string;
   course_section_ids?: string[];
+  university?: string;
+  level?: string;
   created_at: string;
   updated_at: string;
+  last_message?: LastMessageResponse;
+}
+
+export interface LastMessageResponse {
+  message_id: string;
+  sender: 'user' | 'ai' | 'system';
+  content: string;
+  timestamp: string;
 }
 
 export interface ChatHistoryWithoutMessagesResponse {
@@ -338,6 +353,12 @@ export interface ChatHistoryWithoutMessagesResponse {
 
 export interface ChatSessionCreationRequest {
   course_section_ids?: string[];
+  university?: string;
+  level?: string;
+}
+
+export interface ChatSessionUpdateRequest {
+  course_section_ids: string[];
 }
 
 export interface SimilaritySearchRequest {
@@ -357,6 +378,7 @@ export interface SearchMatch {
     page?: number;
     type?: string;
     original_s3_path?: string;
+    course_section?: any;
   };
 }
 
@@ -489,12 +511,35 @@ export interface InteractiveContentCreationRequest {
   order?: number;
 }
 
+export interface AnnotationData {
+  '@context'?: string[];
+  type?: string;
+  id: string;
+  bodyValue?: string;
+  motivation?: string;
+  target?: AnnotationTarget;
+  creator?: AnnotationCreator;
+  created?: string;
+  modified?: string;
+  stylesheet?: any;
+}
+
+export interface AnnotationTarget {
+  source: string;
+  selector?: any;
+}
+
+export interface AnnotationCreator {
+  type?: string;
+  name: string;
+}
+
 export interface PdfAnnotationResponse {
   annotation_id: string;
   user_id: string;
   course_section_id: string;
   is_summary: boolean;
-  annotation: any;
+  annotation: AnnotationData;
   created_at: string;
   updated_at: string;
 }
@@ -502,17 +547,17 @@ export interface PdfAnnotationResponse {
 export interface PdfAnnotationCreateRequest {
   course_section_id: string;
   is_summary?: boolean;
-  annotation: any;
+  annotation: AnnotationData;
 }
 
 export interface PdfAnnotationUpdateRequest {
-  annotation: any;
+  annotation: AnnotationData;
 }
 
 export interface PdfAnnotationBulkCreateRequest {
   course_section_id: string;
   is_summary?: boolean;
-  annotations: any[];
+  annotations: AnnotationData[];
 }
 
 export interface PdfAnnotationBulkUpdateRequest {
@@ -626,4 +671,36 @@ export interface SubscriptionUpdateRequest {
   subscription_tier?: 'free' | 'standard' | 'premium';
   end_date?: string;
   is_active?: boolean;
+}
+
+// Additional types for new API endpoints
+export interface FiltersApplied {
+  s3_paths?: string[];
+  include_images?: boolean;
+}
+
+export interface SimilaritySearchResponse {
+  query: string;
+  total_matches: number;
+  matches: SearchMatch[];
+  filters_applied?: FiltersApplied;
+  search_time_ms?: number;
+  index_name?: string;
+  timestamp: string;
+}
+
+export interface ValidationError {
+  loc: (string | number)[];
+  msg: string;
+  type: string;
+}
+
+export interface HTTPValidationError {
+  detail: ValidationError[];
+}
+
+export interface SuccessResponse {
+  success: boolean;
+  message: string;
+  data?: any;
 }
