@@ -12,6 +12,7 @@ import Landing from "@/pages/landing";
 import Home from "@/pages/home";
 import Courses from "@/pages/courses";
 import Learn from "@/pages/learn";
+import CourseSection from "@/pages/course-section";
 // import Practice from "@/pages/practice";
 import Organize from "@/pages/organize";
 import Statistics from "@/pages/statistics";
@@ -43,6 +44,7 @@ function Router() {
         <ProfileGuard>
           <Route path="/" component={Home} />
           <Route path="/courses/:type?" component={Courses} />
+          <Route path="/courses/:course_id/:course_section_id" component={CourseSection} />
           <Route path="/learn" component={Learn} />
           {/* <Route path="/practice" component={Practice} /> */}
           <Route path="/organize" component={Organize} />
