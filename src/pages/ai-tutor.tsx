@@ -527,7 +527,7 @@ export default function AiTutor() {
                 </CardTitle>
               </CardHeader>
               <CardContent className={`space-y-2 p-4 ${isContextCardVisible ? '' : 'flex-1 flex flex-col'}`}>
-                <div className={isContextCardVisible ? 'h-48' : 'flex-1'}>
+              <div className={isContextCardVisible ? 'h-48' : 'max-h-[330px]'}>
                   <ScrollArea className="h-full">
                     <div className="space-y-2 pr-4">
                       {isChatHistoryLoading ? (
@@ -830,7 +830,10 @@ export default function AiTutor() {
                     {/* Typing indicator */}
                     {isTyping && (
                       <div className="flex items-start space-x-3">
-                        <Avatar className="w-8 h-8 bg-primary">
+                        <Avatar className="w-8 h-8 bg-secondary">
+                          <img  src="/logo.svg" alt="Synapsyx"
+                              className="w-full h-full object-cover rounded-full"
+                            />
                           <AvatarFallback>
                             <Brain className="w-4 h-4 text-primary-foreground" />
                           </AvatarFallback>
