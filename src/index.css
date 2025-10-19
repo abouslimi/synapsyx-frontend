@@ -181,3 +181,55 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
 }
+
+/* Markdown content styling for chat */
+.prose.prose-sm {
+  @apply text-sm;
+}
+
+.prose.prose-sm h1,
+.prose.prose-sm h2,
+.prose.prose-sm h3,
+.prose.prose-sm h4,
+.prose.prose-sm h5,
+.prose.prose-sm h6 {
+  @apply text-sm font-semibold mt-2 mb-1;
+}
+
+.prose.prose-sm p {
+  @apply mb-2 last:mb-0;
+}
+
+.prose.prose-sm ul,
+.prose.prose-sm ol {
+  @apply mb-2 pl-4;
+}
+
+.prose.prose-sm li {
+  @apply mb-1;
+}
+
+.prose.prose-sm code {
+  @apply bg-muted px-1 py-0.5 rounded text-xs font-mono;
+}
+
+.prose.prose-sm pre {
+  @apply bg-muted p-2 rounded text-xs overflow-x-auto;
+}
+
+.prose.prose-sm pre code {
+  @apply bg-transparent p-0;
+}
+
+.prose.prose-sm blockquote {
+  @apply border-l-2 border-muted-foreground/20 pl-3 italic;
+}
+
+.prose.prose-sm table {
+  @apply text-xs;
+}
+
+.prose.prose-sm th,
+.prose.prose-sm td {
+  @apply px-2 py-1 border border-border;
+}

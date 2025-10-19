@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -734,7 +736,11 @@ export default function AiTutor() {
                         {message.sender === 'user' && (
                           <div className="flex items-start space-x-3 justify-end">
                             <div className="flex-1 max-w-2xl bg-primary p-4 rounded-lg">
-                              <p className="text-sm text-primary-foreground">{message.content}</p>
+                              <div className="text-sm text-primary-foreground prose prose-invert prose-sm max-w-none">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                  {message.content}
+                                </ReactMarkdown>
+                              </div>
                               {message.context && (
                                 <div className="mt-2 p-2 bg-primary-foreground/10 rounded text-xs text-primary-foreground/80">
                                   <BookOpen className="w-3 h-3 inline mr-1" />
@@ -770,8 +776,10 @@ export default function AiTutor() {
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 bg-muted p-4 rounded-lg">
-                              <div className="whitespace-pre-wrap text-sm text-foreground">
-                                {message.content}
+                              <div className="text-sm text-foreground prose prose-sm max-w-none">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                  {message.content}
+                                </ReactMarkdown>
                               </div>
                               {message.confidence && (
                                 <div className="mt-2 text-xs text-muted-foreground">
