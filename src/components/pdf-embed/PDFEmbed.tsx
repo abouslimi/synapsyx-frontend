@@ -73,6 +73,8 @@ export interface PDFEmbedProps {
   headers?: Array<{ key: string; value: string }>;
   /** Access token for authenticated requests */
   accessToken?: string;
+  /** Initial page number to navigate to */
+  initialPage?: number | null;
 }
 
 class PDFEmbed extends Component<PDFEmbedProps> {
@@ -94,7 +96,26 @@ class PDFEmbed extends Component<PDFEmbedProps> {
         prevProps.fileId !== this.props.fileId) {
       this.loadPDF();
     }
+    
+    // Handle initialPage changes
+    if (prevProps.initialPage !== this.props.initialPage && this.props.initialPage) {
+      this.navigateToPage(this.props.initialPage);
+    }
   }
+
+  private navigateToPage = (pageNumber: number) => {
+    if (this.previewFilePromise) {
+      this.previewFilePromise.then((previewFile) => {
+        const apis = previewFile.getAPIs();
+        if (apis && apis.gotoLocation) {
+          console.log(`Navigating to page ${pageNumber}`);
+          apis.gotoLocation(pageNumber);
+        }
+      }).catch((error) => {
+        console.error('Error navigating to page:', error);
+      });
+    }
+  };
 
   private loadPDF = () => {
     const {
@@ -117,7 +138,8 @@ class PDFEmbed extends Component<PDFEmbedProps> {
       printWithAnnotations = true,
       includePDFAnnotations = true,
       enablePDFAnalytics = true,
-      headers
+      headers,
+      initialPage = null
     } = this.props;
 
     this.viewSDKClient.ready().then(() => {
@@ -176,23 +198,31 @@ class PDFEmbed extends Component<PDFEmbedProps> {
         this.previewFilePromise.then(async (adobeViewer) => {
           this.props.onPDFLoaded?.();
           adobeViewer.getAPIs().then((apis: any) => {
-            // Get the stored page number from localStorage
-            const storageKey = `pdf_page_${fileName.replace(/[^a-zA-Z0-9]/g, '_')}`;
-            const storedPageNumber = localStorage.getItem(storageKey);
+            // Priority: initialPage prop > stored page number > default to page 1
+            let pageToNavigate = 1;
             
-            if (storedPageNumber) {
-              const pageNumber = parseInt(storedPageNumber, 10);
-              if (pageNumber > 0) {
-                console.log(`Navigating to stored page ${pageNumber} for ${fileName}`);
-                apis.gotoLocation(pageNumber);
-              } else {
-                console.log(`Invalid stored page number: ${storedPageNumber}`);
-                apis.gotoLocation(1); // Default to page 1
-              }
+            if (initialPage && initialPage > 0) {
+              pageToNavigate = initialPage;
+              console.log(`Navigating to initial page ${pageToNavigate} for ${fileName}`);
             } else {
-              console.log(`No stored page number found for ${fileName}, defaulting to page 1`);
-              apis.gotoLocation(1); // Default to page 1
+              // Get the stored page number from localStorage
+              const storageKey = `pdf_page_${fileName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+              const storedPageNumber = localStorage.getItem(storageKey);
+              
+              if (storedPageNumber) {
+                const pageNumber = parseInt(storedPageNumber, 10);
+                if (pageNumber > 0) {
+                  pageToNavigate = pageNumber;
+                  console.log(`Navigating to stored page ${pageToNavigate} for ${fileName}`);
+                } else {
+                  console.log(`Invalid stored page number: ${storedPageNumber}`);
+                }
+              } else {
+                console.log(`No stored page number found for ${fileName}, defaulting to page 1`);
+              }
             }
+            
+            apis.gotoLocation(pageToNavigate);
           });
           // Register user profile callback if access token is provided
           if (this.props.accessToken) {

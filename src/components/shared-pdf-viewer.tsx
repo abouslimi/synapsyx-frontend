@@ -37,6 +37,7 @@ interface SharedPdfViewerProps {
   onClose: () => void;
   isSummary?: boolean;
   isModal?: boolean; // New prop to control modal vs full-page display
+  initialPage?: number | null; // Initial page number to navigate to
 }
 
 export function SharedPdfViewer({ 
@@ -44,7 +45,8 @@ export function SharedPdfViewer({
   isOpen, 
   onClose, 
   isSummary = false, 
-  isModal = true 
+  isModal = true,
+  initialPage = null
 }: SharedPdfViewerProps) {
   const auth = useOIDCAuth();
   const queryClient = useQueryClient();
@@ -688,6 +690,7 @@ export function SharedPdfViewer({
                   fileId={courseSection.section_id}
                   embedMode={embedMode}
                   showAnnotationTools={true}
+                  initialPage={initialPage}
                   showDownloadPDF={true}
                   showPrintPDF={true}
                   showZoomControl={true}
@@ -751,6 +754,7 @@ export function SharedPdfViewer({
                   fileId={courseSection.section_id}
                   embedMode={embedMode}
                   showAnnotationTools={true}
+                  initialPage={initialPage}
                   showDownloadPDF={true}
                   showPrintPDF={true}
                   showZoomControl={true}

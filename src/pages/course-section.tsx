@@ -33,6 +33,11 @@ export default function CourseSection() {
   const auth = useOIDCAuth();
   const [showPdfViewer, setShowPdfViewer] = useState(true);
 
+  // Get page parameter from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const pageParam = urlParams.get('page');
+  const initialPage = pageParam ? parseInt(pageParam, 10) : null;
+
   // const courseId = params?.course_id;
   const sectionId = params?.course_section_id;
 
@@ -99,6 +104,7 @@ export default function CourseSection() {
             isOpen={showPdfViewer}
             onClose={() => setShowPdfViewer(false)}
             isModal={false}
+            initialPage={initialPage}
           />
         )}
       </div>
