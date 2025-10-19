@@ -16,6 +16,7 @@ import Learn from "@/pages/learn";
 import Organize from "@/pages/organize";
 import Statistics from "@/pages/statistics";
 import AiTutor from "@/pages/ai-tutor";
+import Bibliotheque from "@/pages/bibliotheque";
 import UserProfile from "@/pages/user-profile";
 import EmailVerification from "@/pages/email-verification";
 import NotFound from "@/pages/not-found";
@@ -47,6 +48,7 @@ function Router() {
           <Route path="/organize" component={Organize} />
           <Route path="/statistics" component={Statistics} />
           <Route path="/ai-tutor" component={AiTutor} />
+          <Route path="/bibliotheque" component={Bibliotheque} />
           <Route path="/user-profile" component={UserProfile} />
           <Route path="/email-verification" component={EmailVerification} />
           <Route path="/test" component={() => <div className="p-8 text-center"><h1 className="text-2xl font-bold">Examens blancs - Bientôt disponible</h1></div>} />

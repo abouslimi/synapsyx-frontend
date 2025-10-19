@@ -16,6 +16,7 @@ import {
   LogOut,
   ChevronDown,
   Settings,
+  Library,
 } from "lucide-react";
 
 export function Sidebar() {
@@ -70,6 +71,12 @@ export function Sidebar() {
       icon: Bot,
       current: location === "/ai-tutor",
       badge: "Nouveau",
+    },
+    {
+      name: "Bibliothèque",
+      href: "/bibliotheque",
+      icon: Library,
+      current: location === "/bibliotheque",
     },
     {
       name: "Blog",

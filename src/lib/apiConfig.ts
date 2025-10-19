@@ -376,26 +376,35 @@ export interface SimilaritySearchRequest {
 export interface SearchMatch {
   score: number;
   metadata: {
-    text: string;
-    page?: number;
     type?: string;
+    page?: number;
+    text?: string;
     original_s3_path?: string;
-    course_section?: any;
+    image_path?: string;
+    image_format?: string;
+    image_presigned_url?: string;
+    course_section?: {
+      section_id: string;
+      section_name: string;
+      course_id: string;
+      file_path: string;
+      section_start?: number;
+      section_end?: number;
+      is_full_document: boolean;
+      is_free: boolean;
+      course?: {
+        course_id: string;
+        course_name: string;
+        university?: string;
+        theme?: string;
+        type: string;
+        cls?: string;
+        semester?: string;
+      };
+    };
   };
 }
 
-export interface SimilaritySearchResponse {
-  query: string;
-  total_matches: number;
-  matches: SearchMatch[];
-  filters_applied?: {
-    s3_paths?: string[];
-    include_images?: boolean;
-  };
-  search_time_ms?: number;
-  index_name?: string;
-  timestamp: string;
-}
 
 export interface SummaryResponse {
   summary_id: string;
