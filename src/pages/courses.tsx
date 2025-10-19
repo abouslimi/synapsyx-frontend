@@ -15,7 +15,7 @@ export default function Courses() {
   const [location] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [universityFilter, setUniversityFilter] = useState("all");
-  const [yearFilter, setYearFilter] = useState("all");
+  const [levelFilter, setLevelFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState(
     location.includes("ecn") ? "ECN" : location.includes("university") ? "University" : "all"
   );
@@ -26,7 +26,7 @@ export default function Courses() {
       { 
         type: typeFilter !== "all" ? typeFilter : undefined,
         university: universityFilter !== "all" ? universityFilter : undefined,
-        year: yearFilter !== "all" ? yearFilter : undefined,
+        level: levelFilter !== "all" ? levelFilter : undefined,
       }
     ],
     queryFn: async ({ queryKey }) => {
@@ -105,12 +105,12 @@ export default function Courses() {
                 </SelectContent>
               </Select>
 
-              <Select value={yearFilter} onValueChange={setYearFilter} data-testid="year-filter">
+              <Select value={levelFilter} onValueChange={setLevelFilter} data-testid="level-filter">
                 <SelectTrigger>
-                  <SelectValue placeholder="Année" />
+                  <SelectValue placeholder="Niveau" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Toutes les années</SelectItem>
+                  <SelectItem value="all">Tous les niveaux</SelectItem>
                   <SelectItem value="PCEM1">PCEM1</SelectItem>
                   <SelectItem value="PCEM2">PCEM2</SelectItem>
                   <SelectItem value="DCEM1">DCEM1</SelectItem>

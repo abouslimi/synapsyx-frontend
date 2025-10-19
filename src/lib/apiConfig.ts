@@ -35,7 +35,6 @@ export const API_ENDPOINTS = {
   RESEND_VERIFICATION: '/api/auth/resend-verification',
   CONFIRM_VERIFICATION: '/api/auth/confirm-verification',
   DISABLE_USER: '/api/auth/user/disable',
-  LOGIN: '/api/auth/login',
   
   // User endpoints
   USER_PREFERENCES: '/api/users/preferences',
@@ -48,19 +47,23 @@ export const API_ENDPOINTS = {
   COURSE_RANDOM_QUESTIONS: (courseId: string) => `/api/courses/${courseId}/questions/random`,
   COURSE_STATISTICS: (courseId: string) => `/api/courses/${courseId}/statistics`,
   COURSE_PDF_URL: (courseId: string) => `/api/courses/${courseId}/pdf-url`,
-  COURSE_SUMMARY: (courseId: string) => `/api/courses/${courseId}/summary`,
   COURSE_INTERACTIVE_CONTENT: (courseId: string) => `/api/courses/${courseId}/interactive-content`,
   
   // Course section endpoints
+  COURSE_SECTIONS: '/api/course-sections/',
+  COURSE_SECTIONS_SEARCH: '/api/course-sections/search',
+  COURSE_SECTIONS_SEARCH_BY_FILE_PATH: '/api/course-sections/search-by-file-path',
+  COURSE_SECTION_DETAILS: (sectionId: string) => `/api/course-sections/${sectionId}`,
   COURSE_SECTION_PDF_URL: (sectionId: string) => `/api/course-sections/${sectionId}/pdf-url`,
-  COURSE_SECTION_SUMMARY: (sectionId: string) => `/api/course-sections/${sectionId}/summary`,
   COURSE_SECTION_QUESTIONS: (sectionId: string) => `/api/course-sections/${sectionId}/questions`,
   COURSE_SECTION_STATISTICS: (sectionId: string) => `/api/course-sections/${sectionId}/statistics`,
+  COURSE_SECTION_CHUNKS: (sectionId: string) => `/api/course-sections/${sectionId}/chunks`,
+  COURSE_SECTION_GENERATE_SUMMARY: (sectionId: string) => `/api/course-sections/${sectionId}/generate-summary`,
+  COURSE_SECTION_INTERACTIVE_CONTENT: (courseId: string, sectionId: string) => `/api/courses/${courseId}/sections/${sectionId}/interactive-content`,
   
   // Question endpoints
   QUESTIONS: '/api/questions/',
   QUESTION_GENERATE: '/api/questions/generate',
-  QUESTION_GENERATE_FROM_CHUNKS: '/api/questions/generate-from-chunks',
   QUESTION_IMAGE_URL: (questionId: string) => `/api/questions/${questionId}/image-url`,
   
   // Quiz endpoints
@@ -75,9 +78,7 @@ export const API_ENDPOINTS = {
   AI_CHAT: '/api/ai/chat',
   AI_CHAT_SESSION: '/api/ai/chat/session',
   AI_CHAT_SESSION_DETAILS: (sessionId: string) => `/api/ai/chat/session/${sessionId}`,
-  AI_SUMMARY_GENERATE: '/api/ai/summary/generate',
-  AI_SUMMARY_DETAILS: (summaryId: string) => `/api/ai/summary/${summaryId}`,
-  AI_CREDITS: '/api/ai/credits',
+  AI_SIMILARITY_SEARCH: '/api/ai/similarity-search',
   
   // Subscription endpoints
   SUBSCRIPTION: '/api/subscriptions/',
@@ -91,7 +92,9 @@ export const API_ENDPOINTS = {
   ADOBE_CONFIG: '/api/adobe/config',
   
   // PDF Annotations endpoints
-  PDF_ANNOTATIONS: '/api/pdf-annotations',
+  PDF_ANNOTATIONS: '/api/pdf-annotations/',
+  PDF_ANNOTATION_DETAILS: (annotationId: string) => `/api/pdf-annotations/${annotationId}`,
+  PDF_ANNOTATIONS_BULK: '/api/pdf-annotations/bulk',
 } as const;
 
 // API Response Types based on OpenAPI schema
@@ -154,16 +157,15 @@ export interface CourseResponse {
   course_name: string;
   description?: string;
   university?: string;
-  year?: number;
   theme?: string;
   pdf_path?: string;
   type: 'University' | 'ECN' | 'Professional';
   cls?: string;
   semester?: string;
   version?: string;
-  theme_name?: string;
   theme_number?: number;
   theme_roman?: string;
+  file_storage?: string;
   created_at: string;
   sections_count?: number;
   questions_count?: number;
@@ -185,17 +187,8 @@ export interface CourseSectionResponse {
   size?: number;
   is_full_document: boolean;
   is_free: boolean;
-  has_interactive_content: boolean;
-  interactive_content_types?: string[];
   created_at: string;
   updated_at: string;
-  university?: string;
-  year?: number;
-  semester?: string;
-  type?: string;
-  cls?: string;
-  theme_name?: string;
-  theme_number?: number;
   summaries_count?: number;
   questions_count?: number;
   course?: CourseInfo;
@@ -206,13 +199,12 @@ export interface CourseInfo {
   course_name: string;
   description?: string;
   university?: string;
-  year?: number;
   theme?: string;
   type: 'University' | 'ECN' | 'Professional';
   cls?: string;
   semester?: string;
-  theme_name?: string;
   theme_number?: number;
+  file_storage?: string;
   created_at: string;
 }
 
@@ -298,6 +290,11 @@ export interface ChatMessageRequest {
   content: string;
   context?: string;
   attachments?: string[];
+  session_id?: string;
+  history_limit?: number;
+  search_top_k?: number;
+  course_section_ids?: string[];
+  search_index_name?: string;
 }
 
 export interface ChatMessageResponse {
@@ -309,14 +306,13 @@ export interface ChatMessageResponse {
   attachments?: string[];
   confidence?: number;
   timestamp: string;
+  search_metadata?: any;
 }
 
 export interface ChatSessionResponse {
   session_id: string;
   user_id: string;
-  course_id?: string;
-  course_section_id?: string;
-  course_section_chunk_id?: string;
+  course_section_ids?: string[];
   created_at: string;
   updated_at: string;
   messages?: ChatMessageResponse[];
@@ -325,6 +321,56 @@ export interface ChatSessionResponse {
 export interface ChatHistoryResponse {
   sessions: ChatSessionResponse[];
   total: number;
+}
+
+export interface ChatSessionWithoutMessages {
+  session_id: string;
+  user_id: string;
+  course_section_ids?: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatHistoryWithoutMessagesResponse {
+  sessions: ChatSessionWithoutMessages[];
+  total: number;
+}
+
+export interface ChatSessionCreationRequest {
+  course_section_ids?: string[];
+}
+
+export interface SimilaritySearchRequest {
+  query?: string;
+  query_text?: string;
+  top_k?: number;
+  include_images?: boolean;
+  s3_paths?: string[];
+  course_section_ids?: string[];
+  index_name?: string;
+}
+
+export interface SearchMatch {
+  score: number;
+  metadata: {
+    text: string;
+    page?: number;
+    type?: string;
+    original_s3_path?: string;
+  };
+}
+
+export interface SimilaritySearchResponse {
+  query: string;
+  total_matches: number;
+  matches: SearchMatch[];
+  filters_applied?: {
+    s3_paths?: string[];
+    include_images?: boolean;
+  };
+  search_time_ms?: number;
+  index_name?: string;
+  timestamp: string;
 }
 
 export interface SummaryResponse {
@@ -400,4 +446,184 @@ export interface CourseSectionStatisticsResponse {
   accuracy_percentage: number;
   study_time: number;
   last_accessed: string | null;
+  completion_percentage: number;
+  has_summary: boolean;
+}
+
+// New types based on OpenAPI specification
+export interface CourseListResponse {
+  courses: CourseResponse[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
+export interface CourseSectionListResponse {
+  sections: CourseSectionResponse[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
+export interface FilePathSearchResponse {
+  courses: CourseResponse[];
+  sections: CourseSectionResponse[];
+  total_courses: number;
+  total_sections: number;
+}
+
+export interface InteractiveContentResponse {
+  interactive_content_id: string;
+  course_section_id: string;
+  content_type: string;
+  content: string;
+  order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InteractiveContentCreationRequest {
+  content_type: string;
+  content: string;
+  order?: number;
+}
+
+export interface PdfAnnotationResponse {
+  annotation_id: string;
+  user_id: string;
+  course_section_id: string;
+  is_summary: boolean;
+  annotation: any;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PdfAnnotationCreateRequest {
+  course_section_id: string;
+  is_summary?: boolean;
+  annotation: any;
+}
+
+export interface PdfAnnotationUpdateRequest {
+  annotation: any;
+}
+
+export interface PdfAnnotationBulkCreateRequest {
+  course_section_id: string;
+  is_summary?: boolean;
+  annotations: any[];
+}
+
+export interface PdfAnnotationBulkUpdateRequest {
+  annotations: any[];
+}
+
+export interface PdfAnnotationListResponse {
+  annotations: PdfAnnotationResponse[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+}
+
+export interface UserProfileUpdateRequest {
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  profile_image_url?: string;
+  university?: string;
+  level?: 'PCEM1' | 'PCEM2' | 'DCEM1' | 'DCEM2' | 'DCEM3' | 'INTERNE' | 'AUTRE';
+  level_other?: string;
+}
+
+export interface UserPreferencesUpdateRequest {
+  preferences: any;
+}
+
+export interface AccountDisableRequest {
+  reason: string;
+}
+
+export interface VerificationRequest {
+  email: string;
+  verification_code: string;
+}
+
+export interface CourseCreationRequest {
+  course_name: string;
+  description?: string;
+  university?: string;
+  theme?: string;
+  type?: 'University' | 'ECN' | 'Professional';
+  cls?: string;
+  semester?: string;
+  version?: string;
+  theme_number?: number;
+  theme_roman?: string;
+  file_storage?: string;
+}
+
+export interface CourseSectionCreationRequest {
+  course_id: string;
+  section_name: string;
+  file_path: string;
+  section_start?: number;
+  section_end?: number;
+  split_page_count?: number;
+  original_total_pages?: number;
+  file_description?: string;
+  summary_file_path?: string;
+  size?: number;
+  is_full_document?: boolean;
+  is_free?: boolean;
+}
+
+export interface QuestionCreationRequest {
+  course_section_id?: string;
+  related_entity_type?: 'course' | 'section';
+  related_entity_id: string;
+  question_text: string;
+  options?: string[];
+  correct_answer: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  source?: 'llm' | 'human' | 'exam' | 'serie';
+}
+
+export interface QuestionGenerationRequest {
+  course_section_id?: string;
+  related_entity_type?: 'course' | 'section';
+  related_entity_id: string;
+  count?: number;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  tags?: string[];
+}
+
+export interface QuestionImageUrlRequest {
+  image_type: string;
+  image_format?: string;
+}
+
+export interface QuestionImageUrlResponse {
+  presigned_url: string;
+  image_url: string;
+}
+
+export interface ProgressUpdateRequest {
+  course_id?: string;
+  course_section_id?: string;
+  progress_percentage: number;
+  study_time?: number;
+}
+
+export interface SubscriptionCreationRequest {
+  subscription_tier: 'free' | 'standard' | 'premium';
+  start_date: string;
+  end_date: string;
+}
+
+export interface SubscriptionUpdateRequest {
+  subscription_tier?: 'free' | 'standard' | 'premium';
+  end_date?: string;
+  is_active?: boolean;
 }

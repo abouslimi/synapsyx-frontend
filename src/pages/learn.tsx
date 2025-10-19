@@ -37,7 +37,7 @@ export default function Learn() {
   
   const [searchTerm, setSearchTerm] = useState("");
   const [universityFilter, setUniversityFilter] = useState("all");
-  const [yearFilter, setYearFilter] = useState("all");
+  const [levelFilter, setLevelFilter] = useState("all");
   const [semesterFilter, setSemesterFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all"); // all, platform, user, shared
   const [sortBy, setSortBy] = useState("course_name"); // name, theme, courseName, sectionName
@@ -73,7 +73,7 @@ export default function Learn() {
       
       // Use saved preferences if available, otherwise use user profile defaults
       const savedUniversity = actualPreferences.universityFilter;
-      const savedYear = actualPreferences.yearFilter;
+      const savedLevel = actualPreferences.levelFilter;
       const savedSemester = actualPreferences.semesterFilter;
       const savedSource = actualPreferences.sourceFilter;
       const savedSortBy = actualPreferences.sortBy;
@@ -83,8 +83,8 @@ export default function Learn() {
         setUniversityFilter(savedUniversity);
       }
       
-      if (savedYear) {
-        setYearFilter(savedYear);
+      if (savedLevel) {
+        setLevelFilter(savedLevel);
       }
 
       if (savedSemester) {
@@ -108,7 +108,7 @@ export default function Learn() {
         setUniversityFilter((user as any).university);
       }
       if ((user as any).cls) {
-        setYearFilter((user as any).cls);
+        setLevelFilter((user as any).cls);
       }
     }
   }, [user, userPreferences]);
@@ -123,7 +123,7 @@ export default function Learn() {
           { 
             type: "University",
             university: newPreferences.universityFilter !== "all" ? newPreferences.universityFilter : undefined,
-            year: newPreferences.yearFilter !== "all" ? newPreferences.yearFilter : undefined,
+            level: newPreferences.levelFilter !== "all" ? newPreferences.levelFilter : undefined,
             semester: newPreferences.semesterFilter !== "all" ? newPreferences.semesterFilter : undefined,
             source: newPreferences.sourceFilter !== "all" ? newPreferences.sourceFilter : undefined,
             sort_by: newPreferences.sortBy,
@@ -142,7 +142,7 @@ export default function Learn() {
     setUniversityFilter(value);
     savePreferences({
       universityFilter: value,
-      yearFilter,
+      levelFilter,
       semesterFilter,
       sourceFilter,
       sortBy,
@@ -150,11 +150,11 @@ export default function Learn() {
     });
   };
 
-  const handleYearChange = (value: string) => {
-    setYearFilter(value);
+  const handleLevelChange = (value: string) => {
+    setLevelFilter(value);
     savePreferences({
       universityFilter,
-      yearFilter: value,
+      levelFilter: value,
       semesterFilter,
       sourceFilter,
       sortBy,
@@ -166,7 +166,7 @@ export default function Learn() {
     setSemesterFilter(value);
     savePreferences({
       universityFilter,
-      yearFilter,
+      levelFilter,
       semesterFilter: value,
       sourceFilter,
       sortBy,
@@ -178,7 +178,7 @@ export default function Learn() {
     setSourceFilter(value);
     savePreferences({
       universityFilter,
-      yearFilter,
+      levelFilter,
       semesterFilter,
       sourceFilter: value,
       sortBy,
@@ -190,7 +190,7 @@ export default function Learn() {
     setSortBy(value);
     savePreferences({
       universityFilter,
-      yearFilter,
+      levelFilter,
       semesterFilter,
       sourceFilter,
       sortBy: value,
@@ -202,7 +202,7 @@ export default function Learn() {
     setSortOrder(value);
     savePreferences({
       universityFilter,
-      yearFilter,
+      levelFilter,
       semesterFilter,
       sourceFilter,
       sortBy,
@@ -216,7 +216,7 @@ export default function Learn() {
       { 
         type: "University",
         university: universityFilter !== "all" ? universityFilter : undefined,
-        year: yearFilter !== "all" ? yearFilter : undefined,
+        level: levelFilter !== "all" ? levelFilter : undefined,
         semester: semesterFilter !== "all" ? semesterFilter : undefined,
         source: sourceFilter !== "all" ? sourceFilter : undefined,
         sort_by: sortBy,
@@ -256,7 +256,7 @@ export default function Learn() {
         keyword: searchTerm,
         type: "University",
         university: universityFilter !== "all" ? universityFilter : undefined,
-        year: yearFilter !== "all" ? yearFilter : undefined,
+        level: levelFilter !== "all" ? levelFilter : undefined,
         semester: semesterFilter !== "all" ? semesterFilter : undefined,
         source: sourceFilter !== "all" ? sourceFilter : undefined,
         sort_by: sortBy,
@@ -322,7 +322,7 @@ export default function Learn() {
                 onClick={() => {
                   setSearchTerm("");
                   setUniversityFilter("all");
-                  setYearFilter("all");
+                  setLevelFilter("all");
                   setSemesterFilter("all");
                   setSourceFilter("all");
                   setSortBy("course_name");
@@ -331,7 +331,7 @@ export default function Learn() {
                   // Save the reset preferences
                   savePreferences({
                     universityFilter: "all",
-                    yearFilter: "all",
+                    levelFilter: "all",
                     semesterFilter: "all",
                     sourceFilter: "all",
                     sortBy: "course_name",
@@ -378,8 +378,8 @@ export default function Learn() {
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Niveau</label>
-                  <Select value={yearFilter} onValueChange={handleYearChange} data-testid="year-filter">
-                    <SelectTrigger className={yearFilter !== "all" ? "border-primary" : ""}>
+                  <Select value={levelFilter} onValueChange={handleLevelChange} data-testid="level-filter">
+                    <SelectTrigger className={levelFilter !== "all" ? "border-primary" : ""}>
                       <SelectValue placeholder="Sélectionner" />
                     </SelectTrigger>
                     <SelectContent>
@@ -451,7 +451,7 @@ export default function Learn() {
               </div>
 
               {/* Active Filters Summary */}
-              {(universityFilter !== "all" || yearFilter !== "all" || semesterFilter !== "all" || sourceFilter !== "all") && (
+              {(universityFilter !== "all" || levelFilter !== "all" || semesterFilter !== "all" || sourceFilter !== "all") && (
                 <div className="flex flex-wrap gap-2 pt-2 border-t">
                   <span className="text-sm text-muted-foreground">Filtres actifs:</span>
                   {universityFilter !== "all" && (
@@ -459,9 +459,9 @@ export default function Learn() {
                       Université: {universityFilter}
                     </Badge>
                   )}
-                  {yearFilter !== "all" && (
+                  {levelFilter !== "all" && (
                     <Badge variant="secondary" className="text-xs">
-                      Niveau: {yearFilter}
+                      Niveau: {levelFilter}
                     </Badge>
                   )}
                   {semesterFilter !== "all" && (

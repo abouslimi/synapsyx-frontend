@@ -6,19 +6,37 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { buildApiUrl, API_ENDPOINTS } from "@/lib/apiConfig";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { API_ENDPOINTS } from "@/lib/apiConfig";
+import type { 
+  ChatMessageRequest, 
+  ChatMessageResponse, 
+  ChatSessionResponse, 
+  ChatHistoryWithoutMessagesResponse,
+  ChatSessionCreationRequest,
+  SimilaritySearchRequest,
+  SimilaritySearchResponse,
+  CourseSectionResponse,
+  CourseSectionListResponse
+} from "@/lib/apiConfig";
 import { 
   Bot, 
   Send, 
   User, 
-  Sparkles, 
   MessageSquare,
   Clock,
   Brain,
   BookOpen,
-  AlertCircle
+  AlertCircle,
+  Plus,
+  Search,
+  Target,
+  ChevronDown,
+  ChevronUp,
+  History,
+  X,
 } from "lucide-react";
 import { authenticatedApiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -32,7 +50,13 @@ export default function AiTutor() {
   const oidcAuth = useOIDCAuth();
   const [message, setMessage] = useState("");
   const [context, setContext] = useState("");
+  const [selectedCourseSections, setSelectedCourseSections] = useState<string[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [courseSectionSearch, setCourseSectionSearch] = useState("");
+  const [selectedUniversity, setSelectedUniversity] = useState<string>("");
+  const [selectedLevel, setSelectedLevel] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
@@ -52,15 +76,24 @@ export default function AiTutor() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  const { data: chatHistory } = useQuery({
+  // Set default values from user data
+  useEffect(() => {
+    if (user?.university) {
+      setSelectedUniversity(user.university);
+    }
+    if (user?.cls) {
+      setSelectedLevel(user.cls);
+    }
+  }, [user]);
+
+  // Fetch chat history (sessions)
+  const { data: chatHistory } = useQuery<ChatHistoryWithoutMessagesResponse>({
     queryKey: [API_ENDPOINTS.AI_CHAT],
     queryFn: async ({ queryKey }) => {
       try {
-        const response = await fetch(queryKey[0], {
-          credentials: "include",
-        });
-        if (!response.ok) throw new Error(response.statusText);
-        return await response.json();
+        const response = await authenticatedApiRequest("GET", queryKey[0] as string, null, oidcAuth.user?.access_token);
+        const data = await response.json();
+        return data as ChatHistoryWithoutMessagesResponse;
       } catch (error: any) {
         if (isUnauthorizedError(error)) {
           toast({
@@ -71,22 +104,22 @@ export default function AiTutor() {
           setTimeout(() => {
             window.location.href = "/login";
           }, 500);
-          return [];
+          return { sessions: [], total: 0 };
         }
         throw error;
       }
     },
   });
 
-  const { data: aiCredits } = useQuery({
-    queryKey: ["/api/ai/credits"],
+  // Fetch current session details if we have a session ID
+  const { data: currentSession } = useQuery<ChatSessionResponse | null>({
+    queryKey: [API_ENDPOINTS.AI_CHAT_SESSION_DETAILS(currentSessionId || ""), currentSessionId],
     queryFn: async ({ queryKey }) => {
+      if (!currentSessionId) return null;
       try {
-        const response = await fetch(queryKey[0], {
-          credentials: "include",
-        });
-        if (!response.ok) throw new Error(response.statusText);
-        return await response.json();
+        const response = await authenticatedApiRequest("GET", queryKey[0] as string, null, oidcAuth.user?.access_token);
+        const data = await response.json();
+        return data as ChatSessionResponse;
       } catch (error: any) {
         if (isUnauthorizedError(error)) {
           return null;
@@ -94,18 +127,83 @@ export default function AiTutor() {
         throw error;
       }
     },
+    enabled: !!currentSessionId,
   });
 
+  // Fetch course sections for context selection with search
+  const { data: courseSections } = useQuery<CourseSectionListResponse>({
+    queryKey: [API_ENDPOINTS.COURSE_SECTIONS_SEARCH, courseSectionSearch, selectedUniversity, selectedLevel],
+    queryFn: async () => {
+      try {
+        const params = new URLSearchParams();
+        if (courseSectionSearch) params.append('keyword', courseSectionSearch);
+        if (selectedUniversity) params.append('university', selectedUniversity);
+        if (selectedLevel) params.append('level', selectedLevel);
+        params.append('per_page', '100');
+        
+        const response = await authenticatedApiRequest("GET", `${API_ENDPOINTS.COURSE_SECTIONS_SEARCH}?${params.toString()}`, null, oidcAuth.user?.access_token);
+        const data = await response.json();
+        return data as CourseSectionListResponse;
+      } catch (error: any) {
+        if (isUnauthorizedError(error)) {
+          return { sections: [], total: 0, page: 1, per_page: 100 };
+        }
+        throw error;
+      }
+    },
+  });
+
+  // Create new chat session
+  const createSessionMutation = useMutation({
+    mutationFn: async (data: ChatSessionCreationRequest): Promise<ChatSessionResponse> => {
+      const response = await authenticatedApiRequest("POST", API_ENDPOINTS.AI_CHAT_SESSION, data, oidcAuth.user?.access_token);
+      const responseData = await response.json();
+      return responseData as ChatSessionResponse;
+    },
+    onSuccess: (response: ChatSessionResponse) => {
+      setCurrentSessionId(response.session_id);
+      queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.AI_CHAT] });
+      toast({
+        title: "Nouvelle session créée",
+        description: "Vous pouvez maintenant commencer à discuter avec l'IA",
+      });
+    },
+    onError: (error: any) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Non autorisé",
+          description: "Vous êtes déconnecté. Redirection...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 500);
+        return;
+      }
+      
+      toast({
+        title: "Erreur",
+        description: "Impossible de créer une nouvelle session",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Send message mutation
   const sendMessageMutation = useMutation({
-    mutationFn: async (data: { content: string; context?: string }) => {
-      return await authenticatedApiRequest("POST", API_ENDPOINTS.AI_CHAT, data, oidcAuth.user?.access_token);
+    mutationFn: async (data: ChatMessageRequest): Promise<ChatMessageResponse> => {
+      const response = await authenticatedApiRequest("POST", API_ENDPOINTS.AI_CHAT, data, oidcAuth.user?.access_token);
+      const responseData = await response.json();
+      return responseData as ChatMessageResponse;
     },
     onMutate: () => {
       setIsTyping(true);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.AI_CHAT] });
-      queryClient.invalidateQueries({ queryKey: ["/api/ai/credits"] });
+      if (currentSessionId) {
+        queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.AI_CHAT_SESSION_DETAILS(currentSessionId)] });
+      }
       setMessage("");
       setContext("");
       toast({
@@ -121,46 +219,110 @@ export default function AiTutor() {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = buildApiUrl(API_ENDPOINTS.LOGIN);
+          window.location.href = "/login";
         }, 500);
         return;
       }
       
-      if (error.message.includes("Insufficient AI credits")) {
-        toast({
-          title: "Crédits insuffisants",
-          description: "Vous n'avez plus de crédits IA disponibles",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Erreur",
-          description: "Impossible d'envoyer le message à l'IA",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Erreur",
+        description: "Impossible d'envoyer le message à l'IA",
+        variant: "destructive",
+      });
     },
     onSettled: () => {
       setIsTyping(false);
     },
   });
 
+  // Similarity search mutation
+  const similaritySearchMutation = useMutation({
+    mutationFn: async (data: SimilaritySearchRequest): Promise<SimilaritySearchResponse> => {
+      const response = await authenticatedApiRequest("POST", API_ENDPOINTS.AI_SIMILARITY_SEARCH, data, oidcAuth.user?.access_token);
+      const responseData = await response.json();
+      return responseData as SimilaritySearchResponse;
+    },
+    onSuccess: (response: SimilaritySearchResponse) => {
+      toast({
+        title: "Recherche terminée",
+        description: `${response.total_matches} résultats trouvés`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erreur de recherche",
+        description: "Impossible d'effectuer la recherche",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateNewSession = () => {
+    const sessionData: ChatSessionCreationRequest = {};
+    if (selectedCourseSections.length > 0) {
+      sessionData.course_section_ids = selectedCourseSections;
+    }
+    createSessionMutation.mutate(sessionData);
+  };
+
+  const handleLoadSession = (sessionId: string) => {
+    setCurrentSessionId(sessionId);
+  };
+
   const handleSendMessage = () => {
     if (!message.trim()) return;
     
-    if (aiCredits && aiCredits.aiCredits <= 0) {
+    if (!currentSessionId) {
       toast({
-        title: "Crédits insuffisants",
-        description: "Vous n'avez plus de crédits IA disponibles",
+        title: "Session requise",
+        description: "Veuillez créer une nouvelle session avant d'envoyer un message",
         variant: "destructive",
       });
       return;
     }
 
-    sendMessageMutation.mutate({
+    const messageData: ChatMessageRequest = {
       content: message.trim(),
       context: context.trim() || undefined,
-    });
+      session_id: currentSessionId,
+      search_top_k: 5,
+    };
+
+    if (selectedCourseSections.length > 0) {
+      messageData.course_section_ids = selectedCourseSections;
+    }
+
+
+    sendMessageMutation.mutate(messageData);
+  };
+
+  const handleSimilaritySearch = () => {
+    if (!message.trim()) return;
+
+    const searchData: SimilaritySearchRequest = {
+      query: message.trim(),
+      top_k: 10,
+      include_images: false,
+    };
+
+    if (selectedCourseSections.length > 0) {
+      searchData.course_section_ids = selectedCourseSections;
+    }
+
+
+    similaritySearchMutation.mutate(searchData);
+  };
+
+  const handleCourseSectionToggle = (sectionId: string) => {
+    setSelectedCourseSections(prev => 
+      prev.includes(sectionId) 
+        ? prev.filter(id => id !== sectionId)
+        : [...prev, sectionId]
+    );
+  };
+
+  const handleClearSelectedSections = () => {
+    setSelectedCourseSections([]);
   };
 
   const scrollToBottom = () => {
@@ -169,7 +331,7 @@ export default function AiTutor() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [chatHistory, isTyping]);
+  }, [currentSession, isTyping]);
 
   if (isLoading) {
     return (
@@ -186,6 +348,34 @@ export default function AiTutor() {
     "Quels sont les différents types d'anémie ?",
   ];
 
+
+  const universities = [
+    { value: "FMT", label: "F.M.Tunis" },
+    { value: "FMS", label: "F.M.Sousse" },
+    { value: "FMM", label: "F.M.Monastir" },
+    { value: "FMSfax", label: "F.M.Sfax" },
+  ];
+
+  const levels = [
+    { value: "PCEM1", label: "PCEM1" },
+    { value: "PCEM2", label: "PCEM2" },
+    { value: "DCEM1", label: "DCEM1" },
+    { value: "DCEM2", label: "DCEM2" },
+    { value: "DCEM3", label: "DCEM3" },
+    { value: "INTERNE", label: "INTERNE" },
+    { value: "AUTRE", label: "AUTRE" },
+  ];
+
+  // Group course sections by course
+  const groupedSections = courseSections?.sections?.reduce((acc, section) => {
+    const courseName = section.course?.course_name || 'Sans cours';
+    if (!acc[courseName]) {
+      acc[courseName] = [];
+    }
+    acc[courseName].push(section);
+    return acc;
+  }, {} as Record<string, CourseSectionResponse[]>) || {};
+
   return (
     <div className="py-6" data-testid="ai-tutor-page">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -200,16 +390,181 @@ export default function AiTutor() {
                 Posez vos questions médicales à notre assistant IA spécialisé
               </p>
             </div>
-            <Badge variant="secondary" className="flex items-center" data-testid="credits-badge">
-              <Sparkles className="w-4 h-4 mr-1" />
-              {aiCredits ? `${aiCredits.aiCredits} crédits` : 'Chargement...'}
-            </Badge>
+            <div className="flex items-center space-x-2">
+              <Badge variant="secondary" className="flex items-center">
+                <Brain className="w-4 h-4 mr-1" />
+                SynapsyX GPT
+              </Badge>
+              <Button
+                onClick={handleCreateNewSession}
+                disabled={createSessionMutation.isPending}
+                size="sm"
+                className="flex items-center"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Nouvelle session
+              </Button>
+            </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar with quick actions */}
+          {/* Sidebar with session history and context */}
           <div className="lg:col-span-1 space-y-4">
+            {/* Session History */}
+            <Card data-testid="session-history">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center">
+                  <History className="w-5 h-5 mr-2" />
+                  Historique des sessions
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <ScrollArea className="h-48">
+                  {chatHistory?.sessions?.length ? (
+                    chatHistory.sessions.map((session) => (
+                      <Button
+                        key={session.session_id}
+                        variant={currentSessionId === session.session_id ? "default" : "outline"}
+                        size="sm"
+                        className="w-full text-left h-auto p-3 justify-start mb-2"
+                        onClick={() => handleLoadSession(session.session_id)}
+                      >
+                        <div className="flex flex-col items-start">
+                          <span className="text-xs font-medium">
+                            Session {session.session_id.slice(0, 8)}...
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {format(new Date(session.created_at), "dd/MM/yyyy HH:mm", { locale: fr })}
+                          </span>
+                        </div>
+                      </Button>
+                    ))
+                  ) : (
+                    <div className="text-center text-sm text-muted-foreground py-4">
+                      Aucune session précédente
+                    </div>
+                  )}
+                </ScrollArea>
+                <Button
+                  onClick={handleCreateNewSession}
+                  disabled={createSessionMutation.isPending}
+                  size="sm"
+                  className="w-full"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Nouvelle session
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Context Selection */}
+            <Card data-testid="context-selection">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center">
+                  <Target className="w-5 h-5 mr-2" />
+                  Contexte
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Université</label>
+                  <Select value={selectedUniversity} onValueChange={setSelectedUniversity}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner une université" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {universities.map((university) => (
+                        <SelectItem key={university.value} value={university.value}>
+                          {university.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Niveau</label>
+                  <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner un niveau" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {levels.map((level) => (
+                        <SelectItem key={level.value} value={level.value}>
+                          {level.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Sections de cours</label>
+                  <Input
+                    placeholder="Rechercher des sections..."
+                    value={courseSectionSearch}
+                    onChange={(e) => setCourseSectionSearch(e.target.value)}
+                    className="mb-2"
+                  />
+                  
+                  {selectedCourseSections.length > 0 && (
+                    <div className="mb-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium">Sélectionnées ({selectedCourseSections.length})</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleClearSelectedSections}
+                          className="h-6 px-2"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedCourseSections.map((sectionId) => {
+                          const section = courseSections?.sections?.find(s => s.section_id === sectionId);
+                          return (
+                            <Badge key={sectionId} variant="secondary" className="text-xs">
+                              {section?.section_name || sectionId.slice(0, 8)}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <ScrollArea className="h-32">
+                    <div className="space-y-2">
+                      {Object.entries(groupedSections).map(([courseName, sections]) => (
+                        <div key={courseName}>
+                          <div className="text-xs font-medium text-muted-foreground mb-1">
+                            {courseName}
+                          </div>
+                          {sections.map((section) => (
+                            <div key={section.section_id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={section.section_id}
+                                checked={selectedCourseSections.includes(section.section_id)}
+                                onCheckedChange={() => handleCourseSectionToggle(section.section_id)}
+                              />
+                              <label
+                                htmlFor={section.section_id}
+                                className="text-xs cursor-pointer flex-1"
+                              >
+                                {section.section_name}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quick Questions */}
             <Card data-testid="quick-questions">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center">
@@ -232,29 +587,6 @@ export default function AiTutor() {
                 ))}
               </CardContent>
             </Card>
-
-            <Card data-testid="ai-stats">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center">
-                  <Brain className="w-5 h-5 mr-2" />
-                  Statistiques
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Questions posées</span>
-                  <span className="font-medium">{chatHistory?.length || 0}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Crédits restants</span>
-                  <span className="font-medium">{aiCredits?.aiCredits || 0}</span>
-                </div>
-                <Separator />
-                <div className="text-xs text-muted-foreground">
-                  <p>💡 Conseil: Soyez précis dans vos questions pour obtenir de meilleures réponses</p>
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
           {/* Main chat area */}
@@ -265,7 +597,7 @@ export default function AiTutor() {
                   <span>Conversation avec l'IA</span>
                   <div className="flex items-center text-sm text-muted-foreground">
                     <Clock className="w-4 h-4 mr-1" />
-                    En ligne
+                    {currentSessionId ? `Session active (${currentSessionId.slice(0, 8)}...)` : "Aucune session"}
                   </div>
                 </CardTitle>
               </CardHeader>
@@ -275,7 +607,7 @@ export default function AiTutor() {
                 <ScrollArea className="flex-1 p-4">
                   <div className="space-y-4">
                     {/* Welcome message */}
-                    {(!chatHistory || chatHistory.length === 0) && (
+                    {!currentSessionId && (
                       <div className="flex items-start space-x-3">
                         <Avatar className="w-8 h-8 bg-primary">
                           <AvatarFallback>
@@ -287,55 +619,73 @@ export default function AiTutor() {
                             Bonjour {user?.firstName || 'Étudiant'} ! 👋
                           </p>
                           <p className="text-sm text-foreground mt-2">
-                            Je suis votre assistant IA spécialisé en médecine. Posez-moi vos questions sur :
+                            Je suis votre assistant IA spécialisé en médecine. Sélectionnez votre contexte et créez une nouvelle session pour commencer.
                           </p>
-                          <ul className="text-sm text-foreground mt-2 space-y-1 list-disc list-inside">
-                            <li>Physiopathologie et mécanismes</li>
-                            <li>Diagnostic et examens</li>
-                            <li>Traitements et thérapeutiques</li>
-                            <li>Cas cliniques</li>
-                          </ul>
+                          <div className="text-sm text-foreground mt-2">
+                            <p className="font-medium mb-1">Capacités :</p>
+                            <ul className="space-y-1 list-disc list-inside ml-2">
+                              <li>Physiopathologie et mécanismes</li>
+                              <li>Diagnostic et examens</li>
+                              <li>Traitements et thérapeutiques</li>
+                              <li>Cas cliniques</li>
+                            </ul>
+                          </div>
                         </div>
                       </div>
                     )}
 
-                    {/* Chat history */}
-                    {chatHistory?.map((chat: any, index: number) => (
-                      <div key={chat.id || index} className="space-y-4">
+                    {/* Current session messages */}
+                    {currentSession?.messages?.map((message: ChatMessageResponse, index: number) => (
+                      <div key={message.message_id || index} className="space-y-4">
                         {/* User message */}
-                        <div className="flex items-start space-x-3 justify-end">
-                          <div className="flex-1 max-w-2xl bg-primary p-4 rounded-lg">
-                            <p className="text-sm text-primary-foreground">{chat.message}</p>
-                            {chat.context && (
-                              <div className="mt-2 p-2 bg-primary-foreground/10 rounded text-xs text-primary-foreground/80">
-                                <BookOpen className="w-3 h-3 inline mr-1" />
-                                Contexte: {chat.context}
-                              </div>
-                            )}
+                        {message.sender === 'user' && (
+                          <div className="flex items-start space-x-3 justify-end">
+                            <div className="flex-1 max-w-2xl bg-primary p-4 rounded-lg">
+                              <p className="text-sm text-primary-foreground">{message.content}</p>
+                              {message.context && (
+                                <div className="mt-2 p-2 bg-primary-foreground/10 rounded text-xs text-primary-foreground/80">
+                                  <BookOpen className="w-3 h-3 inline mr-1" />
+                                  Contexte: {message.context}
+                                </div>
+                              )}
+                            </div>
+                            <Avatar className="w-8 h-8 bg-secondary">
+                              <AvatarFallback>
+                                <User className="w-4 h-4 text-secondary-foreground" />
+                              </AvatarFallback>
+                            </Avatar>
                           </div>
-                          <Avatar className="w-8 h-8 bg-secondary">
-                            <AvatarFallback>
-                              <User className="w-4 h-4 text-secondary-foreground" />
-                            </AvatarFallback>
-                          </Avatar>
-                        </div>
+                        )}
 
                         {/* AI response */}
-                        <div className="flex items-start space-x-3">
-                          <Avatar className="w-8 h-8 bg-primary">
-                            <AvatarFallback>
-                              <Bot className="w-4 h-4 text-primary-foreground" />
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 bg-muted p-4 rounded-lg">
-                            <div className="whitespace-pre-wrap text-sm text-foreground">
-                              {chat.response}
-                            </div>
-                            <div className="mt-2 text-xs text-muted-foreground">
-                              {format(new Date(chat.createdAt), "PPp", { locale: fr })}
+                        {message.sender === 'ai' && (
+                          <div className="flex items-start space-x-3">
+                            <Avatar className="w-8 h-8 bg-primary">
+                              <AvatarFallback>
+                                <Bot className="w-4 h-4 text-primary-foreground" />
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 bg-muted p-4 rounded-lg">
+                              <div className="whitespace-pre-wrap text-sm text-foreground">
+                                {message.content}
+                              </div>
+                              {message.confidence && (
+                                <div className="mt-2 text-xs text-muted-foreground">
+                                  Confiance: {Math.round(message.confidence * 100)}%
+                                </div>
+                              )}
+                              {message.search_metadata && (
+                                <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs text-blue-800 dark:text-blue-200">
+                                  <Search className="w-3 h-3 inline mr-1" />
+                                  Recherche RAG activée
+                                </div>
+                              )}
+                              <div className="mt-2 text-xs text-muted-foreground">
+                                {format(new Date(message.timestamp), "PPp", { locale: fr })}
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     ))}
 
@@ -363,16 +713,44 @@ export default function AiTutor() {
 
                 {/* Input area */}
                 <div className="border-t p-4 space-y-3">
-                  {/* Context input */}
-                  <div>
-                    <Textarea
-                      placeholder="Contexte optionnel (extrait de cours, cas clinique...)"
-                      value={context}
-                      onChange={(e) => setContext(e.target.value)}
-                      className="min-h-[60px] resize-none"
-                      data-testid="context-input"
-                    />
+                  {/* Advanced options toggle */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Options avancées</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+                    >
+                      {showAdvancedOptions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </Button>
                   </div>
+
+                  {/* Advanced options */}
+                  {showAdvancedOptions && (
+                    <div className="space-y-3 p-3 bg-muted rounded-lg">
+                      <div>
+                        <Textarea
+                          placeholder="Contexte optionnel (extrait de cours, cas clinique...)"
+                          value={context}
+                          onChange={(e) => setContext(e.target.value)}
+                          className="min-h-[60px] resize-none"
+                          data-testid="context-input"
+                        />
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleSimilaritySearch}
+                          disabled={!message.trim() || similaritySearchMutation.isPending}
+                          className="flex items-center"
+                        >
+                          <Search className="w-4 h-4 mr-1" />
+                          Recherche
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Message input */}
                   <div className="flex space-x-2">
@@ -382,27 +760,24 @@ export default function AiTutor() {
                       onChange={(e) => setMessage(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                       className="flex-1"
-                      disabled={sendMessageMutation.isPending || (aiCredits && aiCredits.aiCredits <= 0)}
+                      disabled={sendMessageMutation.isPending || !currentSessionId}
                       data-testid="message-input"
                     />
                     <Button 
                       onClick={handleSendMessage}
-                      disabled={!message.trim() || sendMessageMutation.isPending || (aiCredits && aiCredits.aiCredits <= 0)}
+                      disabled={!message.trim() || sendMessageMutation.isPending || !currentSessionId}
                       data-testid="send-button"
                     >
                       <Send className="w-4 h-4" />
                     </Button>
                   </div>
 
-                  {/* Credits warning */}
-                  {aiCredits && aiCredits.aiCredits <= 3 && (
+                  {/* Session status */}
+                  {!currentSessionId && (
                     <div className="flex items-center p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg text-yellow-800 dark:text-yellow-200">
                       <AlertCircle className="w-4 h-4 mr-2" />
                       <span className="text-sm">
-                        {aiCredits.aiCredits === 0 
-                          ? "Vous n'avez plus de crédits IA" 
-                          : `Plus que ${aiCredits.aiCredits} crédits IA disponibles`
-                        }
+                        Sélectionnez votre contexte et créez une nouvelle session pour commencer à discuter avec l'IA
                       </span>
                     </div>
                   )}
