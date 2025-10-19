@@ -74,9 +74,9 @@ export function Sidebar() {
     },
     {
       name: "Bibliothèque",
-      href: "/bibliotheque",
+      href: "/library",
       icon: Library,
-      current: location === "/bibliotheque",
+      current: location === "/library",
     },
     {
       name: "Blog",
