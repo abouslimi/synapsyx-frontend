@@ -736,7 +736,7 @@ export default function AiTutor() {
 
           {/* Main chat area */}
           <div className="lg:col-span-3">
-            <Card className="h-[600px] flex flex-col" data-testid="chat-area">
+            <Card className="h-full flex flex-col" data-testid="chat-area">
               <CardHeader className="flex-shrink-0">
                 <CardTitle className="flex items-center justify-between">
                   <span>Conversation avec l'IA</span>
