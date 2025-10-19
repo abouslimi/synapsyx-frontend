@@ -388,16 +388,6 @@ export default function AiTutor() {
   };
 
 
-  const updateSessionWithCurrentData = useCallback(() => {
-    console.log("updateSessionWithCurrentData", currentSessionId, isSessionLoaded);
-    if (currentSessionId && isSessionLoaded) {
-      updateSessionMutation.mutate({
-        course_section_ids: selectedCourseSections,
-        university: selectedUniversity,
-        level: selectedLevel,
-      });
-    }
-  }, [currentSessionId, isSessionLoaded, selectedCourseSections, selectedUniversity, selectedLevel, updateSessionMutation]);
 
   const handleSendMessage = () => {
     if (!message.trim()) return;
@@ -567,39 +557,43 @@ export default function AiTutor() {
                   Historique des sessions
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <ScrollArea className="h-48">
-                  {isChatHistoryLoading ? (
-                    <div className="space-y-2 p-2">
-                      <Skeleton className="h-12 w-full" />
-                      <Skeleton className="h-12 w-full" />
-                      <Skeleton className="h-12 w-full" />
-                    </div>
-                  ) : chatHistory?.sessions?.length ? (
-                    chatHistory.sessions.map((session) => (
-                      <Button
-                        key={session.session_id}
-                        variant={currentSessionId === session.session_id ? "default" : "outline"}
-                        size="sm"
-                        className="w-full text-left h-auto p-3 justify-start mb-2"
-                        onClick={() => handleLoadSession(session.session_id)}
-                      >
-                        <div className="flex flex-col items-start">
-                          <span className="text-xs font-medium">
-                            {session.last_message?.content?.slice(0, 15)}...
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {formatInTimeZone(new Date(session.updated_at), 'Africa/Tunis', "dd/MM/yyyy HH:mm", { locale: fr })}
-                          </span>
+              <CardContent className="space-y-2 p-4">
+                <div className="h-48">
+                  <ScrollArea className="h-full">
+                    <div className="space-y-2 pr-4">
+                      {isChatHistoryLoading ? (
+                        <div className="space-y-2 p-2">
+                          <Skeleton className="h-12 w-full" />
+                          <Skeleton className="h-12 w-full" />
+                          <Skeleton className="h-12 w-full" />
                         </div>
-                      </Button>
-                    ))
-                  ) : (
-                    <div className="text-center text-sm text-muted-foreground py-4">
-                      Aucune session précédente
+                      ) : chatHistory?.sessions?.length ? (
+                        chatHistory.sessions.map((session) => (
+                          <Button
+                            key={session.session_id}
+                            variant={currentSessionId === session.session_id ? "default" : "outline"}
+                            size="sm"
+                            className="w-full text-left h-auto p-3 justify-start mb-2"
+                            onClick={() => handleLoadSession(session.session_id)}
+                          >
+                            <div className="flex flex-col items-start">
+                              <span className="text-xs font-medium">
+                                {session.last_message?.content?.slice(0, 15)}...
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {formatInTimeZone(new Date(session.updated_at), 'Africa/Tunis', "dd/MM/yyyy HH:mm", { locale: fr })}
+                              </span>
+                            </div>
+                          </Button>
+                        ))
+                      ) : (
+                        <div className="text-center text-sm text-muted-foreground py-4">
+                          Aucune session précédente
+                        </div>
+                      )}
                     </div>
-                  )}
-                </ScrollArea>
+                  </ScrollArea>
+                </div>
                 <div className="space-y-2">
                   <Button
                     onClick={handleCreateNewSession}
@@ -706,32 +700,34 @@ export default function AiTutor() {
                     </div>
                   )}
 
-                  <ScrollArea className="h-32">
-                    <div className="space-y-2">
-                      {Object.entries(groupedSections).map(([courseName, sections]) => (
-                        <div key={courseName}>
-                          <div className="text-xs font-medium text-muted-foreground mb-1">
-                            {courseName}
-                          </div>
-                          {sections.map((section) => (
-                            <div key={section.section_id} className="flex items-center space-x-2">
-                              <Checkbox
-                                id={section.section_id}
-                                checked={selectedCourseSections.includes(section.section_id)}
-                                onCheckedChange={() => handleCourseSectionToggle(section.section_id)}
-                              />
-                              <label
-                                htmlFor={section.section_id}
-                                className="text-xs cursor-pointer flex-1"
-                              >
-                                {section.section_name}
-                              </label>
+                  <div className="h-32">
+                    <ScrollArea className="h-full">
+                      <div className="space-y-2 pr-4">
+                        {Object.entries(groupedSections).map(([courseName, sections]) => (
+                          <div key={courseName}>
+                            <div className="text-xs font-medium text-muted-foreground mb-1">
+                              {courseName}
                             </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
+                            {sections.map((section) => (
+                              <div key={section.section_id} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={section.section_id}
+                                  checked={selectedCourseSections.includes(section.section_id)}
+                                  onCheckedChange={() => handleCourseSectionToggle(section.section_id)}
+                                />
+                                <label
+                                  htmlFor={section.section_id}
+                                  className="text-xs cursor-pointer flex-1"
+                                >
+                                  {section.section_name}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -751,10 +747,11 @@ export default function AiTutor() {
                 </CardTitle>
               </CardHeader>
               
-              <CardContent className="flex-1 flex flex-col p-0">
+              <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
                 {/* Messages area */}
-                <ScrollArea className="flex-1 p-4">
-                  <div className="space-y-4 min-h-0">
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <ScrollArea className="h-full w-full">
+                    <div className="p-4 space-y-4">
                     {/* Welcome message */}
                     {!currentSessionId && (
                       <div className="flex items-start space-x-3">
@@ -873,12 +870,13 @@ export default function AiTutor() {
                       </div>
                     )}
 
-                    <div ref={messagesEndRef} />
-                  </div>
-                </ScrollArea>
+                      <div ref={messagesEndRef} />
+                    </div>
+                  </ScrollArea>
+                </div>
 
                 {/* Input area */}
-                <div className="border-t p-4 space-y-3">
+                <div className="flex-shrink-0 border-t p-4 space-y-3">
                   {/* Advanced options toggle */}
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Options avancées</span>
