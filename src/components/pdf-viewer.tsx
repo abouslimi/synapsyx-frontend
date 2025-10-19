@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth as useOIDCAuth } from 'react-oidc-context';
-import { getAbsoluteUrl } from '@/lib/queryClient';
+import { getQueryFn } from '@/lib/queryClient';
 import { API_ENDPOINTS } from '@/lib/apiConfig';
 import { pdfAnnotationService, type PdfAnnotationResponse, type AnnotationData } from '@/lib/pdfAnnotationService';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -27,6 +27,7 @@ interface CourseSection {
   description?: string;
   split_page_count?: number;
   summary_id?: string;
+  summary_file_path?: string;
   [key: string]: any;
 }
 
@@ -84,19 +85,22 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
   // Fetch presigned URL for PDF - use section endpoint if available, otherwise course endpoint
   const { data: pdfUrl, isLoading: isLoadingPdf, error: pdfUrlError } = useQuery({
     queryKey: [courseSection.section_id ? API_ENDPOINTS.COURSE_SECTION_PDF_URL(courseSection.section_id) : API_ENDPOINTS.COURSE_PDF_URL(courseSection.course_id)],
-    queryFn: async () => {
-      const endpoint = courseSection.section_id
-        ? API_ENDPOINTS.COURSE_SECTION_PDF_URL(courseSection.section_id)
-        : API_ENDPOINTS.COURSE_PDF_URL(courseSection.course_id);
-      const response = await fetch(getAbsoluteUrl(endpoint));
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
-      }
-      const data = await response.json();
-      return data.presignedUrl;
-    },
-    enabled: isOpen && (!!courseSection.course_id || !!courseSection.section_id),
+    queryFn: getQueryFn<{ presignedUrl: string }>({ 
+      on401: "throw",
+      token: auth.user?.access_token 
+    }),
+    enabled: isOpen && (!!courseSection.course_id || !!courseSection.section_id) && auth.isAuthenticated,
+    retry: false, // Don't retry on 404 errors
+  });
+
+  // Fetch presigned URL for summary PDF
+  const { data: summaryPdfUrl, isLoading: isLoadingSummaryPdf, error: summaryPdfUrlError } = useQuery({
+    queryKey: [API_ENDPOINTS.COURSE_SECTION_SUMMARY_URL(courseSection.section_id!)],
+    queryFn: getQueryFn<{ presignedUrl: string }>({ 
+      on401: "throw",
+      token: auth.user?.access_token 
+    }),
+    enabled: isOpen && !!courseSection.section_id && !!courseSection.summary_file_path && auth.isAuthenticated,
     retry: false, // Don't retry on 404 errors
   });
 
@@ -113,7 +117,7 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
         params.course_section_id = courseSection.section_id;
       }
       if (isSummary) {
-        params.summary_id = courseSection.summary_id; 
+        params.is_summary = true;
       }
       
       console.log('Fetching annotations with params:', params);
@@ -132,7 +136,7 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
       
       const request = {
         course_section_id: courseSection.section_id || null,
-        summary_id: isSummary ? courseSection.summary_id : undefined,
+        is_summary: isSummary,
         annotation: annotationData,
       };
       
@@ -319,7 +323,7 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
         const apiAnnotation = pdfAnnotationService.convertAdobeAnnotationToApi(
           event.data,
           courseSection.section_id,
-          isSummary ? courseSection.summary_id : undefined
+          undefined
         );
         createAnnotationMutation.mutate(apiAnnotation);
         break;
@@ -464,6 +468,12 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
                 <Eye className="h-4 w-4" />
                 {isSummary ? 'Résumé' : 'Cours'}
               </TabsTrigger>
+              {courseSection.summary_file_path && (
+                <TabsTrigger value="summary" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Résumé
+                </TabsTrigger>
+              )}
               <TabsTrigger value="annotations" className="flex items-center gap-2">
                 <Highlighter className="h-4 w-4" />
                 Annotations ({annotations.length})
@@ -518,7 +528,7 @@ Voir le PDF
                     </div>
                   ) : (
                     <PDFEmbed
-                      pdfUrl={pdfUrl}
+                      pdfUrl={pdfUrl.presignedUrl}
                       fileName={courseSection.section_name}
                       fileId={courseSection.section_id}
                       embedMode={embedMode}
@@ -539,6 +549,69 @@ Voir le PDF
                 </div>
               ) : null}
             </TabsContent>
+
+            {courseSection.summary_file_path && (
+              <TabsContent value="summary" className="flex-1 overflow-hidden mx-6 mb-6">
+                {isLoadingSummaryPdf ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                      <p className="text-muted-foreground">Chargement du résumé...</p>
+                    </div>
+                  </div>
+                ) : summaryPdfUrlError ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center max-w-md">
+                      <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold mb-2">Résumé non disponible</h3>
+                      <p className="text-muted-foreground mb-4">
+                        {summaryPdfUrlError instanceof Error && summaryPdfUrlError.message.includes('PDF file not found')
+                          ? 'Ce résumé n\'est pas disponible dans notre système de stockage.'
+                          : 'Échec du chargement du résumé. Veuillez réessayer plus tard.'}
+                      </p>
+                      {summaryPdfUrlError instanceof Error && summaryPdfUrlError.message.includes('PDF file not found') && (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+                          <p className="font-medium">Ce que vous pouvez faire :</p>
+                          <ul className="mt-2 space-y-1 text-left">
+                            <li>• Contactez le support pour signaler ce problème</li>
+                            <li>• Vérifiez si le cours a été mis à jour</li>
+                            <li>• Essayez de rafraîchir la page</li>
+                          </ul>
+                        </div>
+                      )}
+                      <Button
+                        onClick={() => window.location.reload()}
+                        variant="outline"
+                        className="mt-4"
+                      >
+                        Actualiser la page
+                      </Button>
+                    </div>
+                  </div>
+                ) : summaryPdfUrl ? (
+                  <div className={`h-full`}>
+                    <PDFEmbed
+                      pdfUrl={summaryPdfUrl.presignedUrl}
+                      fileName={`Résumé - ${courseSection.section_name}`}
+                      fileId={courseSection.section_id}
+                      embedMode={embedMode}
+                      showAnnotationTools={true}
+                      showDownloadPDF={true}
+                      showPrintPDF={true}
+                      showZoomControl={true}
+                      includePDFAnnotations={true}
+                      defaultViewMode="FIT_WIDTH"
+                      className={embedMode === 'IN_LINE' ? 'in-line-container' : undefined}
+                      accessToken={auth.user?.access_token}
+                      onPDFLoaded={handlePDFLoaded}
+                      onPDFError={handlePDFError}
+                      onAnnotationEvent={handleAnnotationEvent}
+                      onAnnotationManagerReady={handleAnnotationManagerReady}
+                    />
+                  </div>
+                ) : null}
+              </TabsContent>
+            )}
 
             <TabsContent value="annotations" className="flex-1 overflow-hidden mx-6 mb-6">
               <div className="h-full border rounded-lg">

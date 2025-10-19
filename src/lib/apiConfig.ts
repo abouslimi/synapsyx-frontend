@@ -56,6 +56,7 @@ export const API_ENDPOINTS = {
   COURSE_SECTIONS_SEARCH_BY_FILE_PATH: '/api/course-sections/search-by-file-path',
   COURSE_SECTION_DETAILS: (sectionId: string) => `/api/course-sections/${sectionId}`,
   COURSE_SECTION_PDF_URL: (sectionId: string) => `/api/course-sections/${sectionId}/pdf-url`,
+  COURSE_SECTION_SUMMARY_URL: (sectionId: string) => `/api/course-sections/${sectionId}/summary-url`,
   COURSE_SECTION_QUESTIONS: (sectionId: string) => `/api/course-sections/${sectionId}/questions`,
   COURSE_SECTION_STATISTICS: (sectionId: string) => `/api/course-sections/${sectionId}/statistics`,
   COURSE_SECTION_CHUNKS: (sectionId: string) => `/api/course-sections/${sectionId}/chunks`,

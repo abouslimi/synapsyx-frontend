@@ -38,6 +38,7 @@ export interface AnnotationData {
 export interface PdfAnnotationCreateRequest {
   course_section_id?: string | null;
   summary_id?: string | null;
+  is_summary?: boolean;
   annotation: AnnotationData;
 }
 
@@ -136,6 +137,7 @@ class PdfAnnotationService {
     params: {
       course_section_id?: string;
       summary_id?: string;
+      is_summary?: boolean;
       page?: number;
       per_page?: number;
     } = {},
@@ -148,6 +150,9 @@ class PdfAnnotationService {
     }
     if (params.summary_id) {
       searchParams.append('summary_id', params.summary_id);
+    }
+    if (params.is_summary !== undefined) {
+      searchParams.append('is_summary', params.is_summary.toString());
     }
     if (params.page) {
       searchParams.append('page', params.page.toString());
