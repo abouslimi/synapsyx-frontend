@@ -312,28 +312,6 @@ export default function AiTutor() {
     },
   });
 
-  // Similarity search mutation
-  const similaritySearchMutation = useMutation({
-    mutationFn: async (data: SimilaritySearchRequest): Promise<SimilaritySearchResponse> => {
-      const response = await authenticatedApiRequest("POST", API_ENDPOINTS.AI_SIMILARITY_SEARCH, data, oidcAuth.user?.access_token);
-      const responseData = await response.json();
-      return responseData as SimilaritySearchResponse;
-    },
-    onSuccess: (response: SimilaritySearchResponse) => {
-      toast({
-        title: "Recherche terminée",
-        description: `${response.total_matches} résultats trouvés`,
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Erreur de recherche",
-        description: "Impossible d'effectuer la recherche",
-        variant: "destructive",
-      });
-    },
-  });
-
   const handleCreateNewSession = () => {
     const sessionData: ChatSessionCreationRequest = {
       course_section_ids: selectedCourseSections,
@@ -527,10 +505,14 @@ export default function AiTutor() {
               <h1 className="text-3xl font-bold text-foreground mb-4 flex items-center">
                 <Bot className="w-8 h-8 mr-3 text-primary" />
                 IA Tuteur
+                <Badge variant="secondary" className="flex items-center">
+                  <Brain className="w-4 h-4 mr-1" />
+                  SynapsyX GPT
+                </Badge>
               </h1>
-              <p className="text-lg text-muted-foreground">
+              {/* <p className="text-lg text-muted-foreground">
                 Posez vos questions médicales à notre assistant IA spécialisé
-              </p>
+              </p> */}
             </div>
             <div className="flex items-center space-x-2">
               <Button
@@ -540,12 +522,7 @@ export default function AiTutor() {
                 className="flex items-center"
               >
                 {isSidebarVisible ? <PanelLeftClose className="w-4 h-4 mr-1" /> : <PanelLeft className="w-4 h-4 mr-1" />}
-                {isSidebarVisible ? 'Masquer' : 'Afficher'} sidebar
               </Button>
-              <Badge variant="secondary" className="flex items-center">
-                <Brain className="w-4 h-4 mr-1" />
-                SynapsyX GPT
-              </Badge>
               <Button
                 onClick={handleCreateNewSession}
                 disabled={createSessionMutation.isPending}
@@ -605,20 +582,24 @@ export default function AiTutor() {
                           Aucune session précédente
                         </div>
                       )}
+                      
+                      {!chatHistory?.sessions?.length && (
+                        <div className={`space-y-2 ${isContextCardVisible ? '' : 'mt-auto'}`}>
+                          <Button
+                            onClick={handleCreateNewSession}
+                            disabled={createSessionMutation.isPending}
+                            size="sm"
+                            className="w-full"
+                          >
+                            <Plus className="w-4 h-4 mr-1" />
+                            Nouvelle session
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </ScrollArea>
                 </div>
-                <div className={`space-y-2 ${isContextCardVisible ? '' : 'mt-auto'}`}>
-                  <Button
-                    onClick={handleCreateNewSession}
-                    disabled={createSessionMutation.isPending}
-                    size="sm"
-                    className="w-full"
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    Nouvelle session
-                  </Button>
-                </div>
+                
               </CardContent>
             </Card>
 
@@ -916,18 +897,6 @@ export default function AiTutor() {
                           className="min-h-[60px] resize-none"
                           data-testid="context-input"
                         />
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleSimilaritySearch}
-                          disabled={!message.trim() || similaritySearchMutation.isPending}
-                          className="flex items-center"
-                        >
-                          <Search className="w-4 h-4 mr-1" />
-                          Recherche
-                        </Button>
                       </div>
                     </div>
                   )}
