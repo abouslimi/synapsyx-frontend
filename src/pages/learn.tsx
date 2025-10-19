@@ -1002,7 +1002,7 @@ function CourseCard({
                 className="text-xs px-2 py-1 h-auto"
               >
                 <FileText className="w-3 h-3 mr-1" />
-                <span className="hidden sm:inline">Ouvrir</span>
+                <span className="hidden sm:inline">Cours</span>
               </Button>
               <Button
                 size="sm"

@@ -42,7 +42,7 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
   const auth = useOIDCAuth();
   const queryClient = useQueryClient();
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [activeTab, setActiveTab] = useState('viewer');
+  const [activeTab, setActiveTab] = useState(isSummary? 'summary' : 'viewer');
   const [embedMode, setEmbedMode] = useState<'FULL_WINDOW' | 'IN_LINE' | 'SIZED_CONTAINER' | 'LIGHT_BOX'>('FULL_WINDOW');
 
   const [courseAnnotations, setCourseAnnotations] = useState<PdfAnnotationResponse[]>([]);
