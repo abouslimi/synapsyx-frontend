@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { API_ENDPOINTS, type SimilaritySearchRequest, type SimilaritySearchResponse } from "@/lib/apiConfig";
 import { authenticatedApiRequest } from "@/lib/queryClient";
@@ -28,6 +29,7 @@ export default function Bibliotheque() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUniversity, setSelectedUniversity] = useState(user?.university?.toLowerCase() || "fmt");
   const [maxResults, setMaxResults] = useState(5);
+  const [includeImages, setIncludeImages] = useState(true);
   const [searchResults, setSearchResults] = useState<SimilaritySearchResponse | null>(null);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -47,7 +49,7 @@ export default function Bibliotheque() {
       const requestBody: SimilaritySearchRequest = {
         query_text: searchQuery,
         top_k: Math.min(maxResults, 30),
-        include_images: true,
+        include_images: includeImages,
         index_name: selectedUniversity
       };
 
@@ -167,13 +169,29 @@ export default function Bibliotheque() {
               {/* Search Input */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium mb-2">Terme de recherche</label>
-                <Input
-                  type="text"
-                  placeholder="Saisissez votre recherche..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                />
+                <div className="flex items-center space-x-3">
+                  <Input
+                    type="text"
+                    placeholder="Saisissez votre recherche..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    className="flex-1"
+                  />
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="include-images"
+                      checked={includeImages}
+                      onCheckedChange={(checked) => setIncludeImages(checked as boolean)}
+                    />
+                    <label
+                      htmlFor="include-images"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      Inclure images
+                    </label>
+                  </div>
+                </div>
               </div>
 
               {/* Max Results */}
