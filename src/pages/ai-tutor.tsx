@@ -45,8 +45,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useAuth as useOIDCAuth } from "react-oidc-context";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { formatInTimeZone } from 'date-fns-tz'
 
 export default function AiTutor() {
   const oidcAuth = useOIDCAuth();
@@ -544,10 +544,10 @@ export default function AiTutor() {
                       >
                         <div className="flex flex-col items-start">
                           <span className="text-xs font-medium">
-                            Session {session.last_message?.content?.slice(0, 8)}...
+                            {session.last_message?.content?.slice(0, 15)}...
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            {format(new Date(session.created_at), "dd/MM/yyyy HH:mm", { locale: fr })}
+                            {formatInTimeZone(new Date(session.created_at), 'Africa/Tunis', "dd/MM/yyyy HH:mm", { locale: fr })}
                           </span>
                         </div>
                       </Button>
@@ -793,7 +793,7 @@ export default function AiTutor() {
                                 </div>
                               )}
                               <div className="mt-2 text-xs text-muted-foreground">
-                                {format(new Date(message.timestamp), "PPp", { locale: fr })}
+                                {formatInTimeZone(new Date(message.timestamp), 'Africa/Tunis', "PPp", { locale: fr })}
                               </div>
                             </div>
                           </div>
