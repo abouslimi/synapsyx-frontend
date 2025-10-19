@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { API_ENDPOINTS } from "@/lib/apiConfig";
@@ -101,7 +102,7 @@ export default function AiTutor() {
   }, [currentSessionId]);
 
   // Fetch chat history (sessions)
-  const { data: chatHistory } = useQuery<ChatHistoryWithoutMessagesResponse>({
+  const { data: chatHistory, isLoading: isChatHistoryLoading } = useQuery<ChatHistoryWithoutMessagesResponse>({
     queryKey: [API_ENDPOINTS.AI_CHAT],
     queryFn: async ({ queryKey }) => {
       try {
@@ -522,7 +523,13 @@ export default function AiTutor() {
               </CardHeader>
               <CardContent className="space-y-2">
                 <ScrollArea className="h-48">
-                  {chatHistory?.sessions?.length ? (
+                  {isChatHistoryLoading ? (
+                    <div className="space-y-2 p-2">
+                      <Skeleton className="h-12 w-full" />
+                      <Skeleton className="h-12 w-full" />
+                      <Skeleton className="h-12 w-full" />
+                    </div>
+                  ) : chatHistory?.sessions?.length ? (
                     chatHistory.sessions.map((session) => (
                       <Button
                         key={session.session_id}
@@ -752,7 +759,10 @@ export default function AiTutor() {
                         {/* AI response */}
                         {message.sender === 'ai' && (
                           <div className="flex items-start space-x-3">
-                            <Avatar className="w-8 h-8 bg-primary">
+                            <Avatar className="w-8 h-8">
+                              <img  src="/logo.svg" alt="Synapsyx"
+                                  className="w-full h-full object-cover rounded-full"
+                                />
                               <AvatarFallback>
                                 <Brain className="w-4 h-4 text-primary-foreground" />
                               </AvatarFallback>
