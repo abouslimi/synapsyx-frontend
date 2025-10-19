@@ -103,7 +103,17 @@ export default function Bibliotheque() {
   const formatTextWithHighlight = (text: string, query: string) => {
     if (!query.trim()) return text;
     
-    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    // Split query by spaces and filter out empty strings
+    const queryWords = query.trim().split(/\s+/).filter(word => word.length > 0);
+    
+    if (queryWords.length === 0) return text;
+    
+    // Create a regex that matches any of the query words (case insensitive)
+    const escapedWords = queryWords.map(word => 
+      word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    );
+    const regex = new RegExp(`(${escapedWords.join('|')})`, 'gi');
+    
     const parts = text.split(regex);
     
     return parts.map((part, index) => 
