@@ -516,36 +516,38 @@ export function SharedPdfViewer({
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
-                {/* Refresh Annotations */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    refetchCourseAnnotations();
-                    refetchSummaryAnnotations();
-                  }}
-                  title="Actualiser les annotations"
-                  disabled={isLoadingCourseAnnotations || isLoadingSummaryAnnotations}
-                >
-                  <RefreshCw className={`h-4 w-4 ${(isLoadingCourseAnnotations || isLoadingSummaryAnnotations) ? 'animate-spin' : ''}`} />
-                </Button>
+              {isModal && (
+                <div className="flex items-center gap-2">
+                  {/* Refresh Annotations */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      refetchCourseAnnotations();
+                      refetchSummaryAnnotations();
+                    }}
+                    title="Actualiser les annotations"
+                    disabled={isLoadingCourseAnnotations || isLoadingSummaryAnnotations}
+                  >
+                    <RefreshCw className={`h-4 w-4 ${(isLoadingCourseAnnotations || isLoadingSummaryAnnotations) ? 'animate-spin' : ''}`} />
+                  </Button>
 
-                {/* Fullscreen Toggle */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={toggleFullscreen}
-                  title={isFullscreen ? 'Quitter le plein écran' : 'Plein écran'}
-                >
-                  {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                </Button>
+                  {/* Fullscreen Toggle */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleFullscreen}
+                    title={isFullscreen ? 'Quitter le plein écran' : 'Plein écran'}
+                  >
+                    {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                  </Button>
 
-                {/* Close Button */}
-                <Button variant="ghost" size="sm" onClick={onClose}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
+                  {/* Close Button */}
+                  <Button variant="ghost" size="sm" onClick={onClose}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </div>
             {renderContent()}
           </div>
@@ -579,36 +581,38 @@ export function SharedPdfViewer({
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Refresh Annotations */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                refetchCourseAnnotations();
-                refetchSummaryAnnotations();
-              }}
-              title="Actualiser les annotations"
-              disabled={isLoadingCourseAnnotations || isLoadingSummaryAnnotations}
-            >
-              <RefreshCw className={`h-4 w-4 ${(isLoadingCourseAnnotations || isLoadingSummaryAnnotations) ? 'animate-spin' : ''}`} />
-            </Button>
+          {isModal && (
+            <div className="flex items-center gap-2">
+              {/* Refresh Annotations */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  refetchCourseAnnotations();
+                  refetchSummaryAnnotations();
+                }}
+                title="Actualiser les annotations"
+                disabled={isLoadingCourseAnnotations || isLoadingSummaryAnnotations}
+              >
+                <RefreshCw className={`h-4 w-4 ${(isLoadingCourseAnnotations || isLoadingSummaryAnnotations) ? 'animate-spin' : ''}`} />
+              </Button>
 
-            {/* Fullscreen Toggle */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleFullscreen}
-              title={isFullscreen ? 'Quitter le plein écran' : 'Plein écran'}
-            >
-              {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-            </Button>
+              {/* Fullscreen Toggle */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleFullscreen}
+                title={isFullscreen ? 'Quitter le plein écran' : 'Plein écran'}
+              >
+                {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </Button>
 
-            {/* Close Button */}
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+              {/* Close Button */}
+              <Button variant="ghost" size="sm" onClick={onClose}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
         <div className="flex-1 overflow-hidden">
           {renderContent()}
