@@ -930,7 +930,11 @@ function CourseCard({
   };
 
   return (
-    <Card className="hover:shadow-lg transition-shadow flex flex-col h-full" data-testid={`course-${course.id}`}>
+    <Card 
+      className="hover:shadow-lg transition-shadow flex flex-col h-full cursor-pointer" 
+      data-testid={`course-${course.id}`}
+      onClick={() => onPreview(course)}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
@@ -953,13 +957,8 @@ function CourseCard({
                   {course.semester === '1' ? 'S1' : 'S2'}
                 </Badge>
               )}
-              {course.type && (
-                <Badge variant="default" className="text-xs">
-                  {course.type === 'University' ? 'Université' : course.type}
-                </Badge>
-              )}
-              {course.theme_name && (
-                <Badge variant="default" className="text-xs">{course.theme_name}</Badge>
+              {course.theme && (
+                <Badge variant="default" className="text-xs">{course.theme}</Badge>
               )}
             </div>
           </div>
@@ -998,12 +997,6 @@ function CourseCard({
                 <span>{course.questions_count} questions</span>
               </div>
             )}
-            {course.size && (
-              <div className="flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 flex-shrink-0" />
-                <span>{(course.size / 1024 / 1024).toFixed(1)} MB</span>
-              </div>
-            )}
           </div>
 
           <div className="space-y-2">
@@ -1011,56 +1004,44 @@ function CourseCard({
               <Button 
                 size="sm" 
                 variant="outline"
-                onClick={() => onPreview(course)}
-                className="text-xs px-2 py-1 h-auto"
-              >
-                <Eye className="w-3 h-3 mr-1" />
-                <span className="hidden sm:inline">Aperçu</span>
-              </Button>
-              <Button 
-                size="sm" 
-                variant="outline"
-                onClick={() => onViewPdf(course)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewPdf(course);
+                }}
                 className="text-xs px-2 py-1 h-auto"
               >
                 <FileText className="w-3 h-3 mr-1" />
                 <span className="hidden sm:inline">Ouvrir</span>
               </Button>
-            </div>
-            <div className="grid grid-cols-2 gap-1">
               <Button 
                 size="sm" 
                 variant="outline"
-                onClick={() => onStartQuiz(course)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStartQuiz(course);
+                }}
                 className="text-xs px-2 py-1 h-auto"
               >
                 <Play className="w-3 h-3 mr-1" />
                 <span className="hidden sm:inline">Quiz</span>
               </Button>
-              {(course.summary_file_path || course.pdf_path) && (
+            </div>
+            {(course.summary_file_path || course.pdf_path) && (
+              <div className="grid grid-cols-1 gap-1">
                 <Button 
                   size="sm" 
                   variant="outline"
-                  onClick={() => onViewSummary(course)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewSummary(course);
+                  }}
                   className="text-xs px-2 py-1 h-auto"
                 >
                   <FileText className="w-3 h-3 mr-1" />
                   <span className="hidden sm:inline">Résumé</span>
                 </Button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-3 gap-1">
-              <Button size="sm" variant="ghost" className="text-xs px-2 py-1 h-auto" title="Télécharger">
-                <Download className="w-3 h-3" />
-              </Button>
-              <Button size="sm" variant="ghost" className="text-xs px-2 py-1 h-auto" title="Sauvegarder">
-                <Save className="w-3 h-3" />
-              </Button>
-              <Button size="sm" variant="ghost" className="text-xs px-2 py-1 h-auto" title="Partager">
-                <Share2 className="w-3 h-3" />
-              </Button>
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
