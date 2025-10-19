@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -59,6 +59,7 @@ export default function AiTutor() {
   const [courseSectionSearch, setCourseSectionSearch] = useState("");
   const [selectedUniversity, setSelectedUniversity] = useState<string>("");
   const [selectedLevel, setSelectedLevel] = useState<string>("");
+  const [isSessionLoaded, setIsSessionLoaded] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
@@ -147,26 +148,20 @@ export default function AiTutor() {
     enabled: !!currentSessionId,
   });
 
-  // Set university and level: prioritize session data, fallback to user data
+  // Initialize with user data only once when component mounts
   useEffect(() => {
-    if (currentSession) {
-      // If session has university/level, use those
-      if (currentSession.university) {
-        setSelectedUniversity(currentSession.university);
-      }
-      if (currentSession.level) {
-        setSelectedLevel(currentSession.level);
-      }
-    } else {
-      // If no session or session doesn't have values, use user data as fallback
-      if (user?.university) {
-        setSelectedUniversity(user.university);
-      }
-      if (user?.cls) {
-        setSelectedLevel(user.cls);
-      }
+    if (user?.university && !selectedUniversity) {
+      setSelectedUniversity(user.university);
     }
-  }, [currentSession, user]);
+    if (user?.cls && !selectedLevel) {
+      setSelectedLevel(user.cls);
+    }
+  }, []);
+
+  useEffect(() => {
+    console.log("currentSession", currentSession);
+    loadSessionData();
+  }, [currentSession]);
 
   // Fetch course sections for context selection with search
   const { data: courseSections } = useQuery<CourseSectionListResponse>({
@@ -346,9 +341,26 @@ export default function AiTutor() {
 
   const handleLoadSession = (sessionId: string) => {
     setCurrentSessionId(sessionId);
+    setIsSessionLoaded(false);
     updateUrlWithSessionId(sessionId);
     // Refresh sessions data when a session is selected
     queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.AI_CHAT] });
+  };
+
+  const loadSessionData = () => {
+    console.log("loadSessionData", currentSession);
+    if (currentSession) {
+      if (currentSession.university) {
+        setSelectedUniversity(currentSession.university);
+      }
+      if (currentSession.level) {
+        setSelectedLevel(currentSession.level);
+      }
+      if (currentSession.course_section_ids && currentSession.course_section_ids.length > 0) {
+        setSelectedCourseSections(currentSession.course_section_ids);
+      }
+      setIsSessionLoaded(true);
+    }
   };
 
   const handleUniversityChange = (value: string) => {
@@ -374,6 +386,18 @@ export default function AiTutor() {
       });
     }
   };
+
+
+  const updateSessionWithCurrentData = useCallback(() => {
+    console.log("updateSessionWithCurrentData", currentSessionId, isSessionLoaded);
+    if (currentSessionId && isSessionLoaded) {
+      updateSessionMutation.mutate({
+        course_section_ids: selectedCourseSections,
+        university: selectedUniversity,
+        level: selectedLevel,
+      });
+    }
+  }, [currentSessionId, isSessionLoaded, selectedCourseSections, selectedUniversity, selectedLevel, updateSessionMutation]);
 
   const handleSendMessage = () => {
     if (!message.trim()) return;
@@ -425,17 +449,35 @@ export default function AiTutor() {
     similaritySearchMutation.mutate(searchData);
   };
 
-  const handleCourseSectionToggle = (sectionId: string) => {
-    setSelectedCourseSections(prev => 
-      prev.includes(sectionId) 
+  const handleCourseSectionToggle = useCallback((sectionId: string) => {
+    setSelectedCourseSections(prev => {
+      const newSelection = prev.includes(sectionId) 
         ? prev.filter(id => id !== sectionId)
-        : [...prev, sectionId]
-    );
-  };
+        : [...prev, sectionId];
+      
+      // Update session immediately with new selection
+      if (currentSessionId && isSessionLoaded) {
+        updateSessionMutation.mutate({
+          course_section_ids: newSelection,
+          university: selectedUniversity,
+          level: selectedLevel,
+        });
+      }
+      return newSelection;
+    });
+  }, [currentSessionId, isSessionLoaded, selectedUniversity, selectedLevel, updateSessionMutation]);
 
-  const handleClearSelectedSections = () => {
+  const handleClearSelectedSections = useCallback(() => {
     setSelectedCourseSections([]);
-  };
+    // Update session immediately with empty array
+    if (currentSessionId && isSessionLoaded) {
+      updateSessionMutation.mutate({
+        course_section_ids: [],
+        university: selectedUniversity,
+        level: selectedLevel,
+      });
+    }
+  }, [currentSessionId, isSessionLoaded, selectedUniversity, selectedLevel, updateSessionMutation]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -558,15 +600,27 @@ export default function AiTutor() {
                     </div>
                   )}
                 </ScrollArea>
-                <Button
-                  onClick={handleCreateNewSession}
-                  disabled={createSessionMutation.isPending}
-                  size="sm"
-                  className="w-full"
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Nouvelle session
-                </Button>
+                <div className="space-y-2">
+                  <Button
+                    onClick={handleCreateNewSession}
+                    disabled={createSessionMutation.isPending}
+                    size="sm"
+                    className="w-full"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Nouvelle session
+                  </Button>
+                  {currentSessionId && (
+                    <Button
+                      onClick={loadSessionData}
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                    >
+                      Charger les données de session
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
