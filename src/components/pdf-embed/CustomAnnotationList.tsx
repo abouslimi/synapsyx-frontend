@@ -336,6 +336,7 @@ interface CustomAnnotationListProps {
   className?: string;
   onCleanupOrphaned?: (orphanedIds: string[]) => void;
   accessToken?: string;
+  annotationType?: 'course' | 'summary';
 }
 
 const CustomAnnotationList: React.FC<CustomAnnotationListProps> = ({
@@ -346,7 +347,8 @@ const CustomAnnotationList: React.FC<CustomAnnotationListProps> = ({
   selectedAnnotationId,
   className = '',
   onCleanupOrphaned,
-  accessToken
+  accessToken,
+  annotationType = 'course'
 }) => {
   const [showAnnotations, setShowAnnotations] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -412,8 +414,13 @@ const CustomAnnotationList: React.FC<CustomAnnotationListProps> = ({
       <div className="flex items-center justify-between p-4 border-b">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-5 w-5 text-blue-600" />
-          <h3 className="text-lg font-semibold">Annotations</h3>
+          <h3 className="text-lg font-semibold">
+            Annotations {annotationType === 'summary' ? 'du résumé' : 'du cours'}
+          </h3>
           <Badge variant="secondary">{annotations?.length || 0}</Badge>
+          <Badge variant={annotationType === 'summary' ? 'default' : 'outline'} className="text-xs">
+            {annotationType === 'summary' ? 'Résumé' : 'Cours'}
+          </Badge>
         </div>
         <div className="flex items-center gap-1">
           {orphanedAnnotations.length > 0 && onCleanupOrphaned && accessToken && (

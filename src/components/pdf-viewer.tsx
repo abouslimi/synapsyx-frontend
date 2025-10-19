@@ -45,7 +45,8 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
   const [activeTab, setActiveTab] = useState('viewer');
   const [embedMode, setEmbedMode] = useState<'FULL_WINDOW' | 'IN_LINE' | 'SIZED_CONTAINER' | 'LIGHT_BOX'>('FULL_WINDOW');
 
-  const [annotations, setAnnotations] = useState<PdfAnnotationResponse[]>([]);
+  const [courseAnnotations, setCourseAnnotations] = useState<PdfAnnotationResponse[]>([]);
+  const [summaryAnnotations, setSummaryAnnotations] = useState<PdfAnnotationResponse[]>([]);
   const [showAnnotations] = useState(true);
   const [loadedAnnotationIds, setLoadedAnnotationIds] = useState<Set<string>>(new Set());
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | undefined>();
@@ -104,26 +105,47 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
     retry: false, // Don't retry on 404 errors
   });
 
-  // Fetch annotations for the current course section
-  const { data: annotationsData, isLoading: isLoadingAnnotationsData, refetch: refetchAnnotations, error: annotationsError } = useQuery({
-    queryKey: ['pdf-annotations', courseSection.section_id, courseSection.course_id, courseSection.summary_id, isSummary],
+  // Fetch course annotations (is_summary = false)
+  const { data: courseAnnotationsData, isLoading: isLoadingCourseAnnotations, refetch: refetchCourseAnnotations, error: courseAnnotationsError } = useQuery({
+    queryKey: ['pdf-annotations-course', courseSection.section_id, courseSection.course_id],
     queryFn: async () => {
       if (!auth.user?.access_token) {
         throw new Error('No access token available');
       }
       
-      const params: any = {};
+      const params: any = {
+        is_summary: false
+      };
       if (courseSection.section_id) {
         params.course_section_id = courseSection.section_id;
       }
-      if (isSummary) {
-        params.is_summary = true;
-      }
       
-      console.log('Fetching annotations with params:', params);
+      console.log('Fetching course annotations with params:', params);
       return pdfAnnotationService.getAnnotations(params, auth.user.access_token);
     },
-    enabled: isOpen && !!auth.user?.access_token && (!!courseSection.section_id || !!courseSection.summary_id),
+    enabled: isOpen && !!auth.user?.access_token && !!courseSection.section_id,
+    retry: false,
+  });
+
+  // Fetch summary annotations (is_summary = true)
+  const { data: summaryAnnotationsData, isLoading: isLoadingSummaryAnnotations, refetch: refetchSummaryAnnotations, error: summaryAnnotationsError } = useQuery({
+    queryKey: ['pdf-annotations-summary', courseSection.section_id, courseSection.summary_id],
+    queryFn: async () => {
+      if (!auth.user?.access_token) {
+        throw new Error('No access token available');
+      }
+      
+      const params: any = {
+        is_summary: true
+      };
+      if (courseSection.section_id) {
+        params.course_section_id = courseSection.section_id;
+      }
+      
+      console.log('Fetching summary annotations with params:', params);
+      return pdfAnnotationService.getAnnotations(params, auth.user.access_token);
+    },
+    enabled: isOpen && !!auth.user?.access_token && !!courseSection.section_id,
     retry: false,
   });
 
@@ -134,16 +156,26 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
         throw new Error('No access token available');
       }
       
+      // Determine if this is a summary annotation based on the current active tab
+      const isSummaryAnnotation = activeTab === 'summary';
+      
       const request = {
         course_section_id: courseSection.section_id || null,
-        is_summary: isSummary,
+        is_summary: isSummaryAnnotation,
         annotation: annotationData,
       };
       
       return pdfAnnotationService.createAnnotation(request, auth.user.access_token);
     },
     onSuccess: (newAnnotation) => {
-      setAnnotations(prev => [...prev, newAnnotation]);
+      // Determine which annotation list to add to based on the current active tab
+      const isSummaryAnnotation = activeTab === 'summary';
+      
+      if (isSummaryAnnotation) {
+        setSummaryAnnotations(prev => [...prev, newAnnotation]);
+      } else {
+        setCourseAnnotations(prev => [...prev, newAnnotation]);
+      }
       // Add the new annotation ID to loaded set
       setLoadedAnnotationIds(prev => new Set(prev).add(newAnnotation.annotation.id));
       queryClient.invalidateQueries({ queryKey: ['pdf-annotations'] });
@@ -167,7 +199,11 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
       return pdfAnnotationService.updateAnnotation(annotationId, request, auth.user.access_token);
     },
     onSuccess: (updatedAnnotation) => {
-      setAnnotations(prev => prev.map(ann => 
+      // Update in the appropriate annotation list
+      setCourseAnnotations(prev => prev.map(ann => 
+        ann.annotation_id === updatedAnnotation.annotation_id ? updatedAnnotation : ann
+      ));
+      setSummaryAnnotations(prev => prev.map(ann => 
         ann.annotation_id === updatedAnnotation.annotation_id ? updatedAnnotation : ann
       ));
       queryClient.invalidateQueries({ queryKey: ['pdf-annotations'] });
@@ -187,11 +223,15 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
       return pdfAnnotationService.deleteAnnotation(annotationId, auth.user.access_token);
     },
     onSuccess: (_, annotationId) => {
-      setAnnotations(prev => prev.filter(ann => ann.annotation_id !== annotationId));
+      // Remove from both annotation lists
+      setCourseAnnotations(prev => prev.filter(ann => ann.annotation_id !== annotationId));
+      setSummaryAnnotations(prev => prev.filter(ann => ann.annotation_id !== annotationId));
       // Remove the deleted annotation ID from loaded set
       setLoadedAnnotationIds(prev => {
         const newSet = new Set(prev);
-        const annotationToRemove = annotations.find(ann => ann.annotation_id === annotationId);
+        const courseAnnotationToRemove = courseAnnotations.find(ann => ann.annotation_id === annotationId);
+        const summaryAnnotationToRemove = summaryAnnotations.find(ann => ann.annotation_id === annotationId);
+        const annotationToRemove = courseAnnotationToRemove || summaryAnnotationToRemove;
         if (annotationToRemove) {
           newSet.delete(annotationToRemove.annotation.id);
         }
@@ -214,12 +254,16 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
       return pdfAnnotationService.bulkDeleteAnnotations(orphanedIds, auth.user.access_token);
     },
     onSuccess: (_, orphanedIds) => {
-      setAnnotations(prev => prev.filter(ann => !orphanedIds.includes(ann.annotation_id)));
+      // Remove from both annotation lists
+      setCourseAnnotations(prev => prev.filter(ann => !orphanedIds.includes(ann.annotation_id)));
+      setSummaryAnnotations(prev => prev.filter(ann => !orphanedIds.includes(ann.annotation_id)));
       // Remove the deleted annotation IDs from loaded set
       setLoadedAnnotationIds(prev => {
         const newSet = new Set(prev);
         orphanedIds.forEach(id => {
-          const annotationToRemove = annotations.find(ann => ann.annotation_id === id);
+          const courseAnnotationToRemove = courseAnnotations.find(ann => ann.annotation_id === id);
+          const summaryAnnotationToRemove = summaryAnnotations.find(ann => ann.annotation_id === id);
+          const annotationToRemove = courseAnnotationToRemove || summaryAnnotationToRemove;
           if (annotationToRemove) {
             newSet.delete(annotationToRemove.annotation.id);
           }
@@ -235,13 +279,18 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
 
   // Update local annotations state when API data changes
   useEffect(() => {
-    if (annotationsData?.annotations) {
-      setAnnotations(annotationsData.annotations);
-      console.log('###### annotationsData', annotationsData);
-      // Reset loaded annotation IDs when annotations change
-      // setLoadedAnnotationIds(new Set());
+    if (courseAnnotationsData?.annotations) {
+      setCourseAnnotations(courseAnnotationsData.annotations);
+      console.log('###### courseAnnotationsData', courseAnnotationsData);
     }
-  }, [annotationsData]);
+  }, [courseAnnotationsData]);
+
+  useEffect(() => {
+    if (summaryAnnotationsData?.annotations) {
+      setSummaryAnnotations(summaryAnnotationsData.annotations);
+      console.log('###### summaryAnnotationsData', summaryAnnotationsData);
+    }
+  }, [summaryAnnotationsData]);
 
   // Helper function to safely load annotations
   const loadAnnotationsSafely = async (manager: any, annotationsToLoad: PdfAnnotationResponse[]) => {
@@ -280,16 +329,27 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
 
   // Load annotations into PDF viewer when annotation manager is ready
   useEffect(() => {
-    if (annotationManagerRef.current && annotations.length > 0 && showAnnotations) {
-      loadAnnotationsSafely(annotationManagerRef.current, annotations);
+    if (annotationManagerRef.current && showAnnotations) {
+      // Load course annotations when in viewer tab
+      if (activeTab === 'viewer' && courseAnnotations.length > 0) {
+        loadAnnotationsSafely(annotationManagerRef.current, courseAnnotations);
+      }
+      // Load summary annotations when in summary tab
+      else if (activeTab === 'summary' && summaryAnnotations.length > 0) {
+        loadAnnotationsSafely(annotationManagerRef.current, summaryAnnotations);
+      }
     }
-  }, [annotationManagerRef.current, annotations, showAnnotations, loadedAnnotationIds]);
+  }, [annotationManagerRef.current, courseAnnotations, summaryAnnotations, showAnnotations, loadedAnnotationIds, activeTab]);
 
   console.log('## course', courseSection);
-  console.log('## annotations', annotations);
-  console.log('## annotationsData', annotationsData);
-  console.log('## isLoadingAnnotationsData', isLoadingAnnotationsData);
-  console.log('## annotationsError', annotationsError);
+  console.log('## courseAnnotations', courseAnnotations);
+  console.log('## summaryAnnotations', summaryAnnotations);
+  console.log('## courseAnnotationsData', courseAnnotationsData);
+  console.log('## summaryAnnotationsData', summaryAnnotationsData);
+  console.log('## isLoadingCourseAnnotations', isLoadingCourseAnnotations);
+  console.log('## isLoadingSummaryAnnotations', isLoadingSummaryAnnotations);
+  console.log('## courseAnnotationsError', courseAnnotationsError);
+  console.log('## summaryAnnotationsError', summaryAnnotationsError);
   console.log('## auth.user?.access_token exists:', !!auth.user?.access_token);
   console.log('## isOpen:', isOpen);
   console.log('## courseSection.section_id:', courseSection.section_id);
@@ -310,11 +370,14 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
     switch (event.type) {
       case 'ANNOTATION_ADDED':
         // Check if annotation already exists before creating
-        const existingAnnotation = annotations.find(ann => 
+        const existingCourseAnnotation = courseAnnotations.find(ann => 
+          ann.annotation.id === event.data.id
+        );
+        const existingSummaryAnnotation = summaryAnnotations.find(ann => 
           ann.annotation.id === event.data.id
         );
         
-        if (existingAnnotation) {
+        if (existingCourseAnnotation || existingSummaryAnnotation) {
           console.log('Annotation already exists, skipping creation:', event.data.id);
           return;
         }
@@ -330,7 +393,9 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
         
       case 'ANNOTATION_DELETED':
         // Find the annotation in our local state and delete via API
-        const annotationToDelete = annotations.find(ann => ann.annotation.id === event.data.id);
+        const courseAnnotationToDelete = courseAnnotations.find(ann => ann.annotation.id === event.data.id);
+        const summaryAnnotationToDelete = summaryAnnotations.find(ann => ann.annotation.id === event.data.id);
+        const annotationToDelete = courseAnnotationToDelete || summaryAnnotationToDelete;
         if (annotationToDelete) {
           deleteAnnotationMutation.mutate(annotationToDelete.annotation_id);
         }
@@ -338,7 +403,9 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
         
       case 'ANNOTATION_UPDATED':
         // Find the annotation in our local state and update via API
-        const annotationToUpdate = annotations.find(ann => ann.annotation.id === event.data.id);
+        const courseAnnotationToUpdate = courseAnnotations.find(ann => ann.annotation.id === event.data.id);
+        const summaryAnnotationToUpdate = summaryAnnotations.find(ann => ann.annotation.id === event.data.id);
+        const annotationToUpdate = courseAnnotationToUpdate || summaryAnnotationToUpdate;
         if (annotationToUpdate) {
           const apiAnnotation = pdfAnnotationService.convertAdobeAnnotationToApi(event.data);
           updateAnnotationMutation.mutate({
@@ -362,9 +429,13 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
     console.log('Annotation manager ready');
     annotationManagerRef.current = manager;
     
-    // Load existing annotations if any
-    if (annotations.length > 0 && showAnnotations) {
-      loadAnnotationsSafely(manager, annotations);
+    // Load existing annotations if any based on current tab
+    if (showAnnotations) {
+      if (activeTab === 'viewer' && courseAnnotations.length > 0) {
+        loadAnnotationsSafely(manager, courseAnnotations);
+      } else if (activeTab === 'summary' && summaryAnnotations.length > 0) {
+        loadAnnotationsSafely(manager, summaryAnnotations);
+      }
     }
   };
 
@@ -376,7 +447,10 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
   };
 
   const handleAnnotationEdit = (annotationId: string, newBodyValue: string) => {
-    const annotationToUpdate = annotations.find(ann => ann.annotation_id === annotationId);
+    const courseAnnotationToUpdate = courseAnnotations.find(ann => ann.annotation_id === annotationId);
+    const summaryAnnotationToUpdate = summaryAnnotations.find(ann => ann.annotation_id === annotationId);
+    const annotationToUpdate = courseAnnotationToUpdate || summaryAnnotationToUpdate;
+    
     if (annotationToUpdate) {
       const updatedAnnotationData = {
         ...annotationToUpdate.annotation,
@@ -426,9 +500,9 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
                   {courseSection.split_page_count} pages
                 </Badge>
               )}
-              {annotations.length > 0 && (
+              {(courseAnnotations.length > 0 || summaryAnnotations.length > 0) && (
                 <Badge variant="outline">
-                  {annotations.length} annotations
+                  {courseAnnotations.length + summaryAnnotations.length} annotations
                 </Badge>
               )}
             </div>
@@ -439,11 +513,14 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => refetchAnnotations()}
+                onClick={() => {
+                  refetchCourseAnnotations();
+                  refetchSummaryAnnotations();
+                }}
                 title="Actualiser les annotations"
-                disabled={isLoadingAnnotationsData}
+                disabled={isLoadingCourseAnnotations || isLoadingSummaryAnnotations}
               >
-                <RefreshCw className={`h-4 w-4 ${isLoadingAnnotationsData ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 ${(isLoadingCourseAnnotations || isLoadingSummaryAnnotations) ? 'animate-spin' : ''}`} />
               </Button>
 
               {/* Fullscreen Toggle */}
@@ -466,7 +543,7 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
             <TabsList className="mx-6 mb-4">
               <TabsTrigger value="viewer" className="flex items-center gap-2">
                 <Eye className="h-4 w-4" />
-                {isSummary ? 'Résumé' : 'Cours'}
+                Cours
               </TabsTrigger>
               {courseSection.summary_file_path && (
                 <TabsTrigger value="summary" className="flex items-center gap-2">
@@ -476,7 +553,7 @@ export function PdfViewer({ courseSection, isOpen, onClose, isSummary = false }:
               )}
               <TabsTrigger value="annotations" className="flex items-center gap-2">
                 <Highlighter className="h-4 w-4" />
-                Annotations ({annotations.length})
+                Annotations ({courseAnnotations.length + summaryAnnotations.length})
               </TabsTrigger>
             </TabsList>
 
@@ -615,14 +692,14 @@ Voir le PDF
 
             <TabsContent value="annotations" className="flex-1 overflow-hidden mx-6 mb-6">
               <div className="h-full border rounded-lg">
-                {isLoadingAnnotationsData ? (
+                {isLoadingCourseAnnotations || isLoadingSummaryAnnotations ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
                       <p className="text-muted-foreground">Chargement des annotations...</p>
                     </div>
                   </div>
-                ) : annotations.length === 0 ? (
+                ) : (courseAnnotations.length === 0 && summaryAnnotations.length === 0) ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
                       <Highlighter className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -633,16 +710,54 @@ Voir le PDF
                     </div>
                   </div>
                 ) : (
-                  <CustomAnnotationList
-                    annotations={annotations}
-                    onEditAnnotation={handleAnnotationEdit}
-                    onDeleteAnnotation={handleAnnotationDelete}
-                    onAnnotationSelect={handleAnnotationSelect}
-                    selectedAnnotationId={selectedAnnotationId}
-                    onCleanupOrphaned={handleCleanupOrphaned}
-                    accessToken={auth.user?.access_token}
-                    className="h-full"
-                  />
+                  <div className="h-full flex flex-col">
+                    <div className="p-4 border-b">
+                      <h3 className="text-lg font-semibold mb-2">Annotations du cours et du résumé</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {courseAnnotations.length} annotation(s) du cours • {summaryAnnotations.length} annotation(s) du résumé
+                      </p>
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      <Tabs defaultValue="course" className="h-full flex flex-col">
+                        <TabsList className="mx-4 mt-4">
+                          <TabsTrigger value="course" className="flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            Cours ({courseAnnotations.length})
+                          </TabsTrigger>
+                          <TabsTrigger value="summary" className="flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            Résumé ({summaryAnnotations.length})
+                          </TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="course" className="flex-1 overflow-hidden">
+                          <CustomAnnotationList
+                            annotations={courseAnnotations}
+                            onEditAnnotation={handleAnnotationEdit}
+                            onDeleteAnnotation={handleAnnotationDelete}
+                            onAnnotationSelect={handleAnnotationSelect}
+                            selectedAnnotationId={selectedAnnotationId}
+                            onCleanupOrphaned={handleCleanupOrphaned}
+                            accessToken={auth.user?.access_token}
+                            className="h-full"
+                            annotationType="course"
+                          />
+                        </TabsContent>
+                        <TabsContent value="summary" className="flex-1 overflow-hidden">
+                          <CustomAnnotationList
+                            annotations={summaryAnnotations}
+                            onEditAnnotation={handleAnnotationEdit}
+                            onDeleteAnnotation={handleAnnotationDelete}
+                            onAnnotationSelect={handleAnnotationSelect}
+                            selectedAnnotationId={selectedAnnotationId}
+                            onCleanupOrphaned={handleCleanupOrphaned}
+                            accessToken={auth.user?.access_token}
+                            className="h-full"
+                            annotationType="summary"
+                          />
+                        </TabsContent>
+                      </Tabs>
+                    </div>
+                  </div>
                 )}
               </div>
             </TabsContent>
