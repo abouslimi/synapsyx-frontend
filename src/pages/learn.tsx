@@ -311,23 +311,23 @@ export default function Learn() {
         </div>
 
         {/* Filters */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Filter className="h-5 w-5" />
-                <div className="relative w-full">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <Card className="mb-6 bg-muted/30 border-muted-foreground/20 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-sm font-medium text-muted-foreground">
+              <div className="flex items-center gap-3">
+                <Filter className="h-4 w-4" />
+                <div className="relative w-full max-w-md">
+                  <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Rechercher un cours..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-9 h-9 text-sm bg-background/50 border-muted-foreground/30 focus:border-muted-foreground/50"
                     data-testid="search-input"
                   />
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -353,9 +353,9 @@ export default function Learn() {
                             sortOrder: "asc",
                           });
                         }}
-                        className="text-muted-foreground hover:text-foreground"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted"
                       >
-                        <RotateCcw className="h-4 w-4" />
+                        <RotateCcw className="h-3.5 w-3.5" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -370,9 +370,9 @@ export default function Learn() {
                         variant="ghost"
                         size="sm"
                         onClick={() => setShowFilters(!showFilters)}
-                        className="text-muted-foreground hover:text-foreground"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted"
                       >
-                        {showFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        {showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -384,14 +384,14 @@ export default function Learn() {
             </CardTitle>
           </CardHeader>
           {showFilters && (
-            <CardContent>
+            <CardContent className="pt-0">
               <div className="space-y-4">
                 {/* Filter Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Université</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Université</label>
                     <Select value={universityFilter} onValueChange={handleUniversityChange} data-testid="university-filter">
-                      <SelectTrigger className={universityFilter !== "all" ? "border-primary" : ""}>
+                      <SelectTrigger className={`h-8 text-sm bg-background/50 border-muted-foreground/30 focus:border-muted-foreground/50 ${universityFilter !== "all" ? "border-muted-foreground/60 bg-muted/50" : ""}`}>
                         <SelectValue placeholder="Sélectionner" />
                       </SelectTrigger>
                       <SelectContent>
@@ -404,10 +404,10 @@ export default function Learn() {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Niveau</label>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Niveau</label>
                     <Select value={levelFilter} onValueChange={handleLevelChange} data-testid="level-filter">
-                      <SelectTrigger className={levelFilter !== "all" ? "border-primary" : ""}>
+                      <SelectTrigger className={`h-8 text-sm bg-background/50 border-muted-foreground/30 focus:border-muted-foreground/50 ${levelFilter !== "all" ? "border-muted-foreground/60 bg-muted/50" : ""}`}>
                         <SelectValue placeholder="Sélectionner" />
                       </SelectTrigger>
                       <SelectContent>
@@ -421,10 +421,10 @@ export default function Learn() {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Semestre</label>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Semestre</label>
                     <Select value={semesterFilter} onValueChange={handleSemesterChange} data-testid="semester-filter">
-                      <SelectTrigger className={semesterFilter !== "all" ? "border-primary" : ""}>
+                      <SelectTrigger className={`h-8 text-sm bg-background/50 border-muted-foreground/30 focus:border-muted-foreground/50 ${semesterFilter !== "all" ? "border-muted-foreground/60 bg-muted/50" : ""}`}>
                         <SelectValue placeholder="Sélectionner" />
                       </SelectTrigger>
                       <SelectContent>
@@ -435,10 +435,10 @@ export default function Learn() {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Source</label>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Source</label>
                     <Select value={sourceFilter} onValueChange={handleSourceChange}>
-                      <SelectTrigger className={sourceFilter !== "all" ? "border-primary" : ""}>
+                      <SelectTrigger className={`h-8 text-sm bg-background/50 border-muted-foreground/30 focus:border-muted-foreground/50 ${sourceFilter !== "all" ? "border-muted-foreground/60 bg-muted/50" : ""}`}>
                         <SelectValue placeholder="Sélectionner" />
                       </SelectTrigger>
                       <SelectContent>
@@ -450,11 +450,11 @@ export default function Learn() {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Trier par</label>
-                    <div className="flex gap-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Trier par</label>
+                    <div className="flex gap-1.5">
                       <Select value={sortBy} onValueChange={handleSortByChange}>
-                        <SelectTrigger className="flex-1">
+                        <SelectTrigger className="flex-1 h-8 text-sm bg-background/50 border-muted-foreground/30 focus:border-muted-foreground/50">
                           <SelectValue placeholder="Critère" />
                         </SelectTrigger>
                         <SelectContent>
@@ -469,7 +469,7 @@ export default function Learn() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleSortOrderChange(sortOrder === "asc" ? "desc" : "asc")}
-                        className="px-3"
+                        className="h-8 w-8 p-0 border-muted-foreground/30 hover:bg-muted/50 hover:border-muted-foreground/50"
                         title={sortOrder === "asc" ? "Trier par ordre décroissant" : "Trier par ordre croissant"}
                       >
                         {sortOrder === "asc" ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
@@ -480,26 +480,26 @@ export default function Learn() {
 
                 {/* Active Filters Summary */}
                 {(universityFilter !== "all" || levelFilter !== "all" || semesterFilter !== "all" || sourceFilter !== "all") && (
-                  <div className="flex flex-wrap gap-2 pt-2 border-t">
-                    <span className="text-sm text-muted-foreground">Filtres actifs:</span>
+                  <div className="flex flex-wrap gap-1.5 pt-3 border-t border-muted-foreground/20">
+                    <span className="text-xs text-muted-foreground font-medium">Filtres actifs:</span>
                     {universityFilter !== "all" && (
-                      <Badge variant="secondary" className="text-xs">
-                        Université: {universityFilter}
+                      <Badge variant="outline" className="text-xs h-5 px-2 bg-muted/50 border-muted-foreground/30">
+                        {universityFilter}
                       </Badge>
                     )}
                     {levelFilter !== "all" && (
-                      <Badge variant="secondary" className="text-xs">
-                        Niveau: {levelFilter}
+                      <Badge variant="outline" className="text-xs h-5 px-2 bg-muted/50 border-muted-foreground/30">
+                        {levelFilter}
                       </Badge>
                     )}
                     {semesterFilter !== "all" && (
-                      <Badge variant="secondary" className="text-xs">
-                        Semestre: {semesterFilter === "1" ? "Semestre 1" : "Semestre 2"}
+                      <Badge variant="outline" className="text-xs h-5 px-2 bg-muted/50 border-muted-foreground/30">
+                        S{semesterFilter}
                       </Badge>
                     )}
                     {sourceFilter !== "all" && (
-                      <Badge variant="secondary" className="text-xs">
-                        Source: {sourceFilter === "platform" ? "Plateforme" : sourceFilter === "user" ? "Mes fichiers" : "Partagés"}
+                      <Badge variant="outline" className="text-xs h-5 px-2 bg-muted/50 border-muted-foreground/30">
+                        {sourceFilter === "platform" ? "Plateforme" : sourceFilter === "user" ? "Mes fichiers" : "Partagés"}
                       </Badge>
                     )}
                   </div>
