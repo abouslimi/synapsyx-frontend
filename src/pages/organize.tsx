@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -216,8 +216,33 @@ export default function Organize() {
   const completedTasks = todayTasks.filter((task: any) => task.isCompleted);
   const upcomingTasks = todayTasks.filter((task: any) => !task.isCompleted);
 
+  // Create tasks by date mapping for calendar indicators
+  const tasksByDate = React.useMemo(() => {
+    const tasksMap: Record<string, number> = {};
+    if (schedule) {
+      schedule.forEach((task: any) => {
+        const dateStr = new Date(task.scheduledDate).toISOString().split('T')[0];
+        tasksMap[dateStr] = (tasksMap[dateStr] || 0) + 1;
+      });
+    }
+    return tasksMap;
+  }, [schedule]);
+
   return (
-    <div className="py-6" data-testid="organize-page">
+    <>
+      <style>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+      <div className="py-6" data-testid="organize-page">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-4">Organiser</h1>
@@ -229,32 +254,40 @@ export default function Organize() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Calendar */}
           <div className="lg:col-span-1">
-            <Card data-testid="calendar-card">
-              <CardHeader>
-                <CardTitle>Calendrier</CardTitle>
+            <Card data-testid="calendar-card" className="shadow-lg border-0 bg-gradient-to-br from-background to-muted/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <CalendarIcon className="w-5 h-5 text-primary" />
+                  Calendrier
+                </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <Calendar
                   mode="single"
                   selected={selectedDate}
                   onSelect={(date) => date && setSelectedDate(date)}
                   locale={fr}
-                  className="rounded-md border"
+                  className="rounded-lg border shadow-sm"
+                  tasksByDate={tasksByDate}
                 />
-                <div className="mt-4">
+                <div className="mt-6">
                   <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button className="w-full" data-testid="add-task-button">
+                      <Button 
+                        className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-md hover:shadow-lg transition-all duration-200" 
+                        data-testid="add-task-button"
+                      >
                         <Plus className="w-4 h-4 mr-2" />
                         Ajouter une tâche
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>
+                    <DialogContent className="sm:max-w-md shadow-2xl border-0 bg-gradient-to-br from-background to-muted/5">
+                      <DialogHeader className="pb-4">
+                        <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+                          <Plus className="w-5 h-5 text-primary" />
                           {editingItem ? "Modifier la tâche" : "Nouvelle tâche"}
                         </DialogTitle>
-                        <DialogDescription>
+                        <DialogDescription className="text-muted-foreground">
                           {editingItem ? "Modifiez les détails de votre tâche" : "Créez une nouvelle tâche pour votre planning"}
                         </DialogDescription>
                       </DialogHeader>
@@ -313,7 +346,7 @@ export default function Organize() {
                                       </Button>
                                     </FormControl>
                                   </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0" align="start">
+                                  <PopoverContent className="w-auto p-0 shadow-xl border-0" align="start">
                                     <Calendar
                                       mode="single"
                                       selected={field.value}
@@ -321,6 +354,8 @@ export default function Organize() {
                                       locale={fr}
                                       disabled={(date) => date < new Date("1900-01-01")}
                                       initialFocus
+                                      className="rounded-lg"
+                                      tasksByDate={tasksByDate}
                                     />
                                   </PopoverContent>
                                 </Popover>
@@ -407,10 +442,11 @@ export default function Organize() {
                             )}
                           />
 
-                          <div className="flex justify-end space-x-2">
+                          <div className="flex justify-end space-x-3 pt-4">
                             <Button
                               type="button"
                               variant="outline"
+                              className="hover:bg-muted/50 transition-colors duration-200"
                               onClick={() => {
                                 setIsAddDialogOpen(false);
                                 setEditingItem(null);
@@ -421,6 +457,7 @@ export default function Organize() {
                             </Button>
                             <Button
                               type="submit"
+                              className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-md hover:shadow-lg transition-all duration-200"
                               disabled={createScheduleMutation.isPending || updateScheduleMutation.isPending}
                             >
                               {editingItem ? "Modifier" : "Créer"}
@@ -437,14 +474,18 @@ export default function Organize() {
 
           {/* Tasks for selected date */}
           <div className="lg:col-span-3 space-y-6">
-            <Card data-testid="selected-date-tasks">
-              <CardHeader>
+            <Card data-testid="selected-date-tasks" className="shadow-lg border-0 bg-gradient-to-br from-background to-muted/10">
+              <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
-                  <CardTitle>
+                  <CardTitle className="text-xl font-semibold flex items-center gap-2">
+                    <ClipboardCheck className="w-5 h-5 text-primary" />
                     Tâches du {format(selectedDate, "PPP", { locale: fr })}
                   </CardTitle>
-                  <div className="text-sm text-muted-foreground">
-                    {completedTasks.length}/{todayTasks.length} terminées
+                  <div className="flex items-center gap-2 px-3 py-1 bg-accent/50 rounded-full">
+                    <div className="w-2 h-2 bg-primary rounded-full"></div>
+                    <span className="text-sm font-medium text-muted-foreground">
+                      {completedTasks.length}/{todayTasks.length} terminées
+                    </span>
                   </div>
                 </div>
               </CardHeader>
@@ -457,16 +498,20 @@ export default function Organize() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {todayTasks.map((task: any) => (
+                    {todayTasks.map((task: any, index: number) => (
                       <div
                         key={task.id}
                         className={cn(
-                          "flex items-center p-4 rounded-lg border transition-all",
+                          "flex items-center p-4 rounded-xl border transition-all duration-300 hover:shadow-md group",
                           task.isCompleted 
-                            ? "bg-muted/50 opacity-75" 
-                            : "bg-card hover:shadow-sm"
+                            ? "bg-muted/30 opacity-75 border-muted" 
+                            : "bg-card hover:shadow-lg hover:scale-[1.02] border-border/50"
                         )}
                         data-testid={`task-${task.id}`}
+                        style={{
+                          animationDelay: `${index * 100}ms`,
+                          animation: 'fadeInUp 0.5s ease-out forwards'
+                        }}
                       >
                         <Checkbox
                           checked={task.isCompleted}
@@ -509,6 +554,7 @@ export default function Organize() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-primary/10 hover:text-primary"
                             onClick={() => {
                               setEditingItem(task);
                               form.reset({
@@ -535,25 +581,28 @@ export default function Organize() {
             </Card>
 
             {/* Weekly overview */}
-            <Card data-testid="weekly-overview">
-              <CardHeader>
-                <CardTitle>Aperçu de la semaine</CardTitle>
+            <Card data-testid="weekly-overview" className="shadow-lg border-0 bg-gradient-to-br from-background to-muted/10">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl font-semibold flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-primary" />
+                  Aperçu de la semaine
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-primary">{upcomingTasks.length}</p>
-                    <p className="text-sm text-muted-foreground">Tâches à venir</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="text-center p-4 rounded-xl bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20">
+                    <p className="text-3xl font-bold text-primary mb-2">{upcomingTasks.length}</p>
+                    <p className="text-sm font-medium text-muted-foreground">Tâches à venir</p>
                   </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-accent">{completedTasks.length}</p>
-                    <p className="text-sm text-muted-foreground">Tâches terminées</p>
+                  <div className="text-center p-4 rounded-xl bg-gradient-to-br from-accent/5 to-accent/10 border border-accent/20">
+                    <p className="text-3xl font-bold text-accent mb-2">{completedTasks.length}</p>
+                    <p className="text-sm font-medium text-muted-foreground">Tâches terminées</p>
                   </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-foreground">
+                  <div className="text-center p-4 rounded-xl bg-gradient-to-br from-foreground/5 to-foreground/10 border border-foreground/20">
+                    <p className="text-3xl font-bold text-foreground mb-2">
                       {todayTasks.length > 0 ? Math.round((completedTasks.length / todayTasks.length) * 100) : 0}%
                     </p>
-                    <p className="text-sm text-muted-foreground">Progression</p>
+                    <p className="text-sm font-medium text-muted-foreground">Progression</p>
                   </div>
                 </div>
               </CardContent>
@@ -562,5 +611,6 @@ export default function Organize() {
         </div>
       </div>
     </div>
+    </>
   );
 }
