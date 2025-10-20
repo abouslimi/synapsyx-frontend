@@ -230,14 +230,10 @@ export interface CourseListResponse {
 
 export interface QuestionResponse {
   question_id: string;
-  course_id?: string;
   course_section_id?: string;
-  course_section_chunk_id?: string;
-  related_entity_type: 'course' | 'section' | 'chunk';
-  related_entity_id: string;
   question_text: string;
   options?: string[];
-  correct_answer: string;
+  correct_answers: (number | string)[];
   difficulty: 'easy' | 'medium' | 'hard';
   source: 'llm' | 'human' | 'exam' | 'serie';
   review_status: 'pending' | 'approved' | 'rejected';
@@ -253,8 +249,10 @@ export interface QuestionListResponse {
 }
 
 export interface QuizSubmissionRequest {
-  questions: any[];
-  course_id?: string;
+  questions: {
+    question_id: string;
+    selected_answers: (number | string)[];
+  }[];
   time_taken?: number;
 }
 

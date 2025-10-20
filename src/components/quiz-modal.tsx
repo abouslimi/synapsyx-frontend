@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getAbsoluteUrl } from "@/lib/queryClient";
+import { authenticatedApiRequest } from "@/lib/queryClient";
 import { API_ENDPOINTS } from "@/lib/apiConfig";
+import { useAuth } from "@/hooks/useAuth";
+import { useAuth as useOIDCAuth } from "react-oidc-context";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,13 +34,15 @@ interface QuizModalProps {
   onClose: () => void;
 }
 
-interface QuizResult {
-  score: number;
-  totalQuestions: number;
-  correctAnswers: number;
-  incorrectAnswers: number;
-  timeSpent: number;
-  difficulty: string;
+
+interface QuestionAnswer {
+  question_id: string;
+  selected_answers: (number | string)[];
+}
+
+interface QuizSubmissionData {
+  questions: QuestionAnswer[];
+  time_taken?: number;
 }
 
 export function QuizModal({ course, isOpen, onClose }: QuizModalProps) {
@@ -51,41 +55,40 @@ export function QuizModal({ course, isOpen, onClose }: QuizModalProps) {
   const [currentDifficulty, setCurrentDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
   
   const queryClient = useQueryClient();
+  const { isAuthenticated } = useAuth();
+  const oidcAuth = useOIDCAuth();
 
   // Fetch questions for the course or section
   const { data: questions, isLoading: isLoadingQuestions } = useQuery({
-    queryKey: [course.section_id ? API_ENDPOINTS.COURSE_SECTION_QUESTIONS(course.section_id) : API_ENDPOINTS.COURSE_RANDOM_QUESTIONS(course.id)],
+    queryKey: [course.section_id ? API_ENDPOINTS.COURSE_SECTION_QUESTIONS(course.section_id) : API_ENDPOINTS.COURSE_RANDOM_QUESTIONS(course.id), currentDifficulty],
     queryFn: async () => {
       const endpoint = course.section_id 
         ? `${API_ENDPOINTS.COURSE_SECTION_QUESTIONS(course.section_id)}?count=10&difficulty=${currentDifficulty}`
         : `${API_ENDPOINTS.COURSE_RANDOM_QUESTIONS(course.id)}?count=10&difficulty=${currentDifficulty}`;
-      const response = await fetch(getAbsoluteUrl(endpoint), {
-        credentials: "include",
-      });
-      if (!response.ok) throw new Error(response.statusText);
+      
+      const response = await authenticatedApiRequest(
+        "GET",
+        endpoint,
+        undefined,
+        oidcAuth.user?.access_token
+      );
+      
       const data = await response.json();
-      return course.section_id ? data.questions : data;
+      return data.questions || data; // Handle both response formats
     },
-    enabled: isOpen && (!!course.id || !!course.section_id) && quizStarted,
+    enabled: isOpen && (!!course.id || !!course.section_id) && quizStarted && isAuthenticated,
   });
 
   // Submit quiz result mutation
   const submitQuizMutation = useMutation({
-    mutationFn: async (result: QuizResult) => {
-      const response = await fetch(getAbsoluteUrl(API_ENDPOINTS.QUIZ_SUBMIT), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          course_id: course.id,
-          course_section_id: course.section_id,
-          questions: answers.map(a => ({ question_id: a.questionId, answer: a.answer })),
-          time_taken: result.timeSpent,
-        }),
-      });
-      if (!response.ok) throw new Error(response.statusText);
+    mutationFn: async (submissionData: QuizSubmissionData) => {
+      const response = await authenticatedApiRequest(
+        "POST",
+        API_ENDPOINTS.QUIZ_SUBMIT,
+        submissionData,
+        oidcAuth.user?.access_token
+      );
+      
       return await response.json();
     },
     onSuccess: () => {
@@ -109,10 +112,11 @@ export function QuizModal({ course, isOpen, onClose }: QuizModalProps) {
     if (selectedAnswer === null) return;
 
     const currentQuestion = questions[currentQuestionIndex];
-    const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
+    // Check if the selected answer is in the correct_answers array
+    const isCorrect = currentQuestion.correct_answers.includes(selectedAnswer);
     
     const newAnswer = {
-      questionId: currentQuestion.id,
+      questionId: currentQuestion.question_id,
       answer: selectedAnswer,
       isCorrect,
     };
@@ -125,22 +129,22 @@ export function QuizModal({ course, isOpen, onClose }: QuizModalProps) {
     } else {
       // Quiz completed
       const endTime = Date.now();
-      const timeSpent = Math.round((endTime - (startTime || 0)) / 1000 / 60); // in minutes
+      const timeSpent = Math.round((endTime - (startTime || 0)) / 1000); // in seconds
       
-      const correctAnswers = answers.filter(a => a.isCorrect).length + (isCorrect ? 1 : 0);
-      const totalQuestions = questions.length;
-      const score = Math.round((correctAnswers / totalQuestions) * 100);
 
-      const result: QuizResult = {
-        score,
-        totalQuestions,
-        correctAnswers,
-        incorrectAnswers: totalQuestions - correctAnswers,
-        timeSpent,
-        difficulty: currentDifficulty,
+      // Prepare submission data according to API schema
+      const submissionData: QuizSubmissionData = {
+        questions: answers.map(a => ({
+          question_id: a.questionId,
+          selected_answers: [a.answer]
+        })).concat([{
+          question_id: currentQuestion.question_id,
+          selected_answers: [selectedAnswer]
+        }]),
+        time_taken: timeSpent,
       };
 
-      submitQuizMutation.mutate(result);
+      submitQuizMutation.mutate(submissionData);
       setShowResult(true);
     }
   };
@@ -242,14 +246,25 @@ export function QuizModal({ course, isOpen, onClose }: QuizModalProps) {
               </Card>
 
               <div className="flex gap-4 justify-center">
-                <Button onClick={startQuiz} size="lg" className="flex items-center gap-2">
+                <Button 
+                  onClick={startQuiz} 
+                  size="lg" 
+                  className="flex items-center gap-2"
+                  disabled={!isAuthenticated}
+                >
                   <Play className="h-5 w-5" />
-                  Commencer le quiz
+                  {isAuthenticated ? 'Commencer le quiz' : 'Connexion requise'}
                 </Button>
                 <Button variant="outline" onClick={onClose}>
                   Annuler
                 </Button>
               </div>
+              
+              {!isAuthenticated && (
+                <div className="text-center text-sm text-muted-foreground">
+                  Vous devez être connecté pour accéder au quiz.
+                </div>
+              )}
             </div>
           ) : isLoadingQuestions ? (
             // Loading Questions
@@ -339,7 +354,7 @@ export function QuizModal({ course, isOpen, onClose }: QuizModalProps) {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">
-                      {questions[currentQuestionIndex].question}
+                      {questions[currentQuestionIndex].question_text}
                     </CardTitle>
                     <Badge className={getDifficultyColor(questions[currentQuestionIndex].difficulty)}>
                       {questions[currentQuestionIndex].difficulty === 'easy' ? 'Facile' : 
@@ -348,7 +363,7 @@ export function QuizModal({ course, isOpen, onClose }: QuizModalProps) {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {questions[currentQuestionIndex].options.map((option: string, index: number) => (
+                  {questions[currentQuestionIndex].options?.map((option: string, index: number) => (
                     <Button
                       key={index}
                       variant={selectedAnswer === index ? "default" : "outline"}
@@ -362,7 +377,11 @@ export function QuizModal({ course, isOpen, onClose }: QuizModalProps) {
                         <span>{option}</span>
                       </div>
                     </Button>
-                  ))}
+                  )) || (
+                    <div className="text-center text-muted-foreground py-8">
+                      <p>Cette question ne contient pas d'options de réponse.</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
