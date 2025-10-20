@@ -47,18 +47,18 @@ export function Sidebar() {
       icon: Calendar,
       current: location === "/organize",
     },
-    {
-      name: "Pratiquer",
-      href: "/practice",
-      icon: Dumbbell,
-      current: location === "/practice",
-    },
-    {
-      name: "Se Tester",
-      href: "/test",
-      icon: ClipboardCheck,
-      current: location === "/test",
-    },
+    // {
+    //   name: "Pratiquer",
+    //   href: "/practice",
+    //   icon: Dumbbell,
+    //   current: location === "/practice",
+    // },
+    // {
+    //   name: "Se Tester",
+    //   href: "/test",
+    //   icon: ClipboardCheck,
+    //   current: location === "/test",
+    // },
     {
       name: "Mes Statistiques",
       href: "/statistics",
@@ -78,12 +78,12 @@ export function Sidebar() {
       icon: Library,
       current: location === "/library",
     },
-    {
-      name: "Blog",
-      href: "/blog",
-      icon: BookMarked,
-      current: location === "/blog",
-    },
+    // {
+    //   name: "Blog",
+    //   href: "/blog",
+    //   icon: BookMarked,
+    //   current: location === "/blog",
+    // },
   ];
 
   const getUserInitials = (user: any) => {
@@ -137,7 +137,7 @@ export function Sidebar() {
           <div className="flex items-center">
           <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center">
             <img
-              src="/static/logo.svg"
+              src="/logo.svg"
               alt="logo"
               className="w-5 h-5 text-primary-foreground"
             />

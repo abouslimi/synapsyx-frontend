@@ -22,7 +22,7 @@ export default function Landing() {
             <div className="flex items-center">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <img
-                src="/static/logo.svg"
+                src="/logo.svg"
                 alt="logo"
                 className="w-5 h-5 text-primary-foreground"
               />
@@ -223,7 +223,7 @@ export default function Landing() {
             <div className="flex items-center">
               <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
                 <img
-                  src="/static/logo.svg"
+                  src="/logo.svg"
                   alt="logo"
                   className="w-4 h-4 text-primary-foreground"
                 />
